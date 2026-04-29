@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>에어컨콜 관리자</title>
+    <link rel="stylesheet" href="/admin/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <h1>관리자</h1>
+        <nav id="tabs"></nav>
+      </aside>
+      <main class="content">
+        <header class="top">
+          <div>
+            <h2 id="title">회원관리</h2>
+            <p class="muted">x-admin-role 헤더 기반 임시 인증</p>
+          </div>
+          <label>Role
+            <select id="role">
+              <option value="admin">admin</option>
+              <option value="super_admin">super_admin</option>
+            </select>
+          </label>
+        </header>
+        <section class="panel">
+          <div id="toolbar"></div>
+          <div id="list"></div>
+        </section>
+        <section class="panel">
+          <h3>상세/액션</h3>
+          <pre id="detail"></pre>
+          <div id="actions"></div>
+        </section>
+      </main>
+    </div>
+    <script src="/admin/app.js"></script>
+  </body>
+</html>
