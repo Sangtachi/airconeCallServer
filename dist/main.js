@@ -9,7 +9,13 @@ const http_exception_filter_1 = require("./common/http-exception.filter");
 const response_envelope_interceptor_1 = require("./common/response-envelope.interceptor");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
-    app.setGlobalPrefix('api');
+    app.setGlobalPrefix('api', {
+        exclude: [
+            { path: '', method: common_1.RequestMethod.GET },
+            { path: 'health', method: common_1.RequestMethod.GET },
+            { path: 'admin/(.*)', method: common_1.RequestMethod.ALL },
+        ],
+    });
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,
         transform: true,
