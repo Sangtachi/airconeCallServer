@@ -9,10 +9,19 @@ import { ResponseEnvelopeInterceptor } from './common/response-envelope.intercep
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const corsDefault = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'https://airconecall.vercel.app',
+  ].join(',');
+  const corsRaw = process.env.CORS_ORIGIN?.trim();
+  const corsList = (corsRaw && corsRaw.length > 0 ? corsRaw : corsDefault)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: (process.env.CORS_ORIGIN ?? 'http://localhost:5173,http://127.0.0.1:5173')
-      .split(',')
-      .map((s) => s.trim()),
+    origin: corsList,
     credentials: true,
   });
   app.setGlobalPrefix('api', {

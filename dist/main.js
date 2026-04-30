@@ -9,10 +9,18 @@ const http_exception_filter_1 = require("./common/http-exception.filter");
 const response_envelope_interceptor_1 = require("./common/response-envelope.interceptor");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    const corsDefault = [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'https://airconecall.vercel.app',
+    ].join(',');
+    const corsRaw = process.env.CORS_ORIGIN?.trim();
+    const corsList = (corsRaw && corsRaw.length > 0 ? corsRaw : corsDefault)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
     app.enableCors({
-        origin: (process.env.CORS_ORIGIN ?? 'http://localhost:5173,http://127.0.0.1:5173')
-            .split(',')
-            .map((s) => s.trim()),
+        origin: corsList,
         credentials: true,
     });
     app.setGlobalPrefix('api', {

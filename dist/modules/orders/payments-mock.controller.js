@@ -35,7 +35,9 @@ let PaymentsMockController = class PaymentsMockController {
     }
     async mockConfirm(dto) {
         if (!(0, mock_payments_flag_1.isMockPaymentsAllowed)()) {
-            throw new common_1.ForbiddenException('mock payments are disabled — set NODE_ENV≠production or ENABLE_MOCK_PAYMENTS=true');
+            throw new common_1.ForbiddenException({
+                message: '이 환경에서는 테스트 결제를 사용할 수 없습니다.',
+            });
         }
         return this.orders.mockConfirmPayment(dto.orderId);
     }
