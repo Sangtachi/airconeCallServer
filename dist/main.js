@@ -9,19 +9,74 @@ const http_exception_filter_1 = require("./common/http-exception.filter");
 const response_envelope_interceptor_1 = require("./common/response-envelope.interceptor");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
-    const corsDefault = [
+    app.use((req, res, next) => {
+        if (req.method === 'OPTIONS' &&
+            String(req.headers['access-control-request-private-network']).toLowerCase() === 'true') {
+            res.setHeader('Access-Control-Allow-Private-Network', 'true');
+        }
+        next();
+    });
+    const isProd = process.env.NODE_ENV === 'production';
+    const localRelaxCors = ['1', 'true', 'yes', 'on'].includes(String(process.env.LOCAL_RELAX_CORS ?? '').trim().toLowerCase());
+    const corsRaw = process.env.CORS_ORIGIN?.trim();
+    const envOrigins = corsRaw
+        ? corsRaw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
+    const localViteOrigins = [
         'http://localhost:5173',
         'http://127.0.0.1:5173',
-        'https://airconecall.vercel.app',
-    ].join(',');
-    const corsRaw = process.env.CORS_ORIGIN?.trim();
-    const corsList = (corsRaw && corsRaw.length > 0 ? corsRaw : corsDefault)
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
+        'http://[::1]:5173',
+    ];
+    const staticAllowList = isProd && !localRelaxCors
+        ? envOrigins.length > 0
+            ? [...envOrigins]
+            : ['https://airconecall.vercel.app']
+        : [
+            ...new Set([
+                ...localViteOrigins,
+                ...(envOrigins.length > 0 ? envOrigins : ['https://airconecall.vercel.app']),
+            ]),
+        ];
+    const localhostOriginOk = (origin) => {
+        try {
+            const u = new URL(origin);
+            const h = u.hostname.toLowerCase();
+            return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h === '::1';
+        }
+        catch {
+            return false;
+        }
+    };
+    const corsAllowedHeaders = [
+        'Content-Type',
+        'Authorization',
+        'x-admin-role',
+        'x-technician-id',
+        'idempotency-key',
+        'accept',
+        'origin',
+        'access-control-request-method',
+        'access-control-request-headers',
+    ];
+    const corsOriginSetting = !isProd
+        ? true
+        : localRelaxCors
+            ? (origin, cb) => {
+                if (!origin)
+                    return cb(null, true);
+                if (staticAllowList.includes(origin) || localhostOriginOk(origin))
+                    return cb(null, true);
+                cb(null, false);
+            }
+            : staticAllowList;
     app.enableCors({
-        origin: corsList,
         credentials: true,
+        methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+        allowedHeaders: corsAllowedHeaders,
+        origin: corsOriginSetting,
     });
     app.setGlobalPrefix('api', {
         exclude: [

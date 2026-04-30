@@ -15,15 +15,20 @@ import { TechniciansModule } from './modules/technicians/technicians.module';
   imports: [
     DatabaseModule,
     AdminAuthModule,
-    ServeStaticModule.forRoot({
-      rootPath: join(process.cwd(), 'public'),
-      serveRoot: '/',
-    }),
     EmergencyLeadsModule,
     OrdersModule,
     ServiceCatalogModule,
     TechniciansModule,
     AdminModule,
+    // 정적 SPA는 API 컨트롤러 다음에 두고 /api 는 제외 (@nestjs/serve-static 샘플과 동일)
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'public'),
+      serveRoot: '/',
+      exclude: ['/api/{*path}'],
+      serveStaticOptions: {
+        fallthrough: false,
+      },
+    }),
   ],
 })
 export class AppModule {}

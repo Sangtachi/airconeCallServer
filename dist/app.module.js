@@ -27,15 +27,19 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             database_module_1.DatabaseModule,
             admin_auth_module_1.AdminAuthModule,
-            serve_static_1.ServeStaticModule.forRoot({
-                rootPath: (0, node_path_1.join)(process.cwd(), 'public'),
-                serveRoot: '/',
-            }),
             emergency_leads_module_1.EmergencyLeadsModule,
             orders_module_1.OrdersModule,
             service_catalog_module_1.ServiceCatalogModule,
             technicians_module_1.TechniciansModule,
             admin_module_1.AdminModule,
+            serve_static_1.ServeStaticModule.forRoot({
+                rootPath: (0, node_path_1.join)(process.cwd(), 'public'),
+                serveRoot: '/',
+                exclude: ['/api/{*path}'],
+                serveStaticOptions: {
+                    fallthrough: false,
+                },
+            }),
         ],
     })
 ], AppModule);
