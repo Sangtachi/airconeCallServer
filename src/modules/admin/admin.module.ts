@@ -9,5 +9,6 @@ import { SettlementAuditService } from './settlement-audit.service';
   imports: [TechniciansModule],
   controllers: [AdminController, AdminAuthController],
   providers: [AdminService, SettlementAuditService],
+  exports: [AdminService],
 })
 export class AdminModule {}

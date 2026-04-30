@@ -127,6 +127,23 @@ export class ServiceCatalogService implements OnModuleInit {
     return row;
   }
 
+  /**
+   * 긴급 리드 자동 주문 초안용: EMERGENCY_DEFAULT_PRODUCT_ID 검증 후, 없거나 무효면 활성 설치 상품 첫 건 폴백.
+   */
+  resolveDefaultEmergencyProductId(): string {
+    const raw = process.env.EMERGENCY_DEFAULT_PRODUCT_ID?.trim();
+    if (raw) {
+      const row = this.products.find((p) => p.id === raw && p.isActive);
+      if (row) return row.id;
+      this.logger.warn(
+        `EMERGENCY_DEFAULT_PRODUCT_ID="${raw}" not found or inactive — using first active install product`,
+      );
+    }
+    const install = this.getProducts({ serviceType: 'install' });
+    if (install.length === 0) throw new BadRequestException('No active install product for emergency order draft');
+    return install[0].id;
+  }
+
   getAddons(includeInactive = false): ServiceAddonRow[] {
     let rows = [...this.addons];
     if (!includeInactive) rows = rows.filter((a) => a.isActive);

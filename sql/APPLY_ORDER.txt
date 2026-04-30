@@ -15,6 +15,7 @@ Supabase(또는 Postgres) 적용 순서 — 위에서 아래로 실행하세요.
 6) settlement_audit_and_photo_paths.sql — 정산 감사(settlement_events)·order_photos 스토리지 경로 컬럼
 
 7) emergency_service_leads.sql — 긴급 무전화 접수 리드(카탈로그 주문과 분리)
+   신규 install 이 아니고 7)만 이미 적용된 DB면: emergency_service_leads_converted_booking.sql (converted_booking_id 컬럼 추가)
 
 점검(읽기 전용):
   check_installation_status.sql — 함수/테이블/트리거 나열
@@ -37,6 +38,7 @@ Supabase(또는 Postgres) 적용 순서 — 위에서 아래로 실행하세요.
   ADMIN_JWT_SECRET=            (16자 이상, Bearer 발급 시 필수)
   ADMIN_BOOTSTRAP_PASSWORD=    (POST /api/admin/auth/login — dev 전용 가능)
   ADMIN_LEGACY_X_ADMIN_ROLE=   (false 시 x-admin-role 거부, Bearer 강제에 가깝게)
+  EMERGENCY_DEFAULT_PRODUCT_ID=  (선택 — 긴급 리드 자동 주문 초안의 기본 설치 상품 UUID; 미설정 시 첫 활성 설치 상품 폴백)
   ORDER_PHOTOS_SIGNED_URL_TTL_SEC=900  (0 이면 목록에 DB url 그대로 — 공개 버킷용)
 
 Storage(작업 사진 presigned / 확인 URL):

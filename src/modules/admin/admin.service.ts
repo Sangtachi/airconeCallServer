@@ -18,6 +18,7 @@ import {
   UpdateMemberDto,
   UpdateSettlementStatusDto,
 } from './admin.dto';
+import type { EmergencyLeadRow } from '../emergency-leads/emergency-leads.types';
 import { SettlementAuditService } from './settlement-audit.service';
 
 const allowedTransitions: Record<BookingStatus, BookingStatus[]> = {
@@ -214,6 +215,38 @@ export class AdminService {
     };
     this.bookings.unshift(row);
     this.audit('create_booking', 'bookings', row.id, dto);
+    return row;
+  }
+
+  /** 긴급 리드 자동 전환: 접수를 `matching` + 결제표시 `paid`(배차 큐 진입 목적). */
+  createBookingFromEmergencyLead(lead: EmergencyLeadRow): Booking {
+    const placeholderPhone = '01000001234';
+    const digits = (lead.customerPhone ?? '').replace(/\D/g, '');
+    const customerPhone = digits.length >= 10 ? digits : placeholderPhone;
+    const customerName = (lead.customerName?.trim() ?? '') !== '' ? String(lead.customerName).trim() : '긴급 접수 고객';
+    const rawLoc = lead.locationText.trim();
+    const regionLine = rawLoc.split(/\r?\n/)[0]?.trim() ?? rawLoc;
+    const region = regionLine.length >= 1 ? regionLine.slice(0, 80) : '지역 미입력';
+
+    const memoLines = [`[긴급 리드 ${lead.id}]`, `에어컨:${lead.airconType || '-'}`, `증상:${lead.issueText || '-'}`];
+    if (customerPhone === placeholderPhone) memoLines.push('고객 전화 미확인(placeholder)');
+
+    const row: Booking = {
+      id: `b_${++this.seq}`,
+      bookingNo: this.nextBookingNo(),
+      customerName,
+      customerPhone,
+      region,
+      symptomCode: 'EMERGENCY',
+      urgency: lead.urgency === 'scheduled' ? 'scheduled' : 'now',
+      status: 'matching',
+      assignedTechnicianId: null,
+      paymentStatus: 'paid',
+      adminMemo: memoLines.join('\n'),
+      sourceEmergencyLeadId: lead.id,
+    };
+    this.bookings.unshift(row);
+    this.audit('create_booking', 'bookings', row.id, { source: 'emergency_lead', leadId: lead.id });
     return row;
   }
 

@@ -1,5 +1,14 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { EmergencyLeadDispatchBridge } from './emergency-lead-dispatch.bridge';
 import { PatchEmergencyLeadAdminDto } from './dto/patch-emergency-lead-admin.dto';
 import { PatchEmergencyLeadContactDto } from './dto/patch-emergency-lead-contact.dto';
 import { PatchEmergencyLeadTimeoutDto } from './dto/patch-emergency-lead-timeout.dto';
@@ -19,12 +28,56 @@ function trimEmptyToNull(v: string | null | undefined): string | null {
   return t === '' ? null : t;
 }
 
+/** 마감 스윕 간격(ms). MVP 간격이 너무 길면 운영 감속을 위해 줄일 수 있습니다. */
+const FINALIZE_SWEEP_MS = 45_000;
+
 @Injectable()
-export class EmergencyLeadsService {
+export class EmergencyLeadsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(EmergencyLeadsService.name);
+  private sweepTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor(
     @Inject(EMERGENCY_LEADS_REPO)
     private readonly repo: EmergencyLeadsRepositoryPort,
+    private readonly dispatchBridge: EmergencyLeadDispatchBridge,
   ) {}
+
+  onModuleInit(): void {
+    this.sweepTimer = setInterval(() => {
+      void this.runDeadlineSweep().catch((e) =>
+        this.logger.warn(`deadline sweep: ${e instanceof Error ? e.message : String(e)}`),
+      );
+    }, FINALIZE_SWEEP_MS);
+  }
+
+  onModuleDestroy(): void {
+    if (this.sweepTimer) {
+      clearInterval(this.sweepTimer);
+      this.sweepTimer = null;
+    }
+  }
+
+  private async finalizeAwait(row: EmergencyLeadRow): Promise<void> {
+    try {
+      await this.dispatchBridge.tryFinalizeLead(row);
+    } catch (err) {
+      this.logger.warn(
+        `finalize lead=${row.id} — ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  /** 스윕 전용 비동기(인터벌 블록 방지·오류 무시 로그만) */
+  private finalizeSweepFireAndForget(row: EmergencyLeadRow): void {
+    void this.finalizeAwait(row);
+  }
+
+  private async runDeadlineSweep(): Promise<void> {
+    const rows = await this.repo.list({});
+    for (const r of rows) {
+      this.finalizeSweepFireAndForget(r);
+    }
+  }
 
   private quotedFeeKrw(): number {
     const raw = process.env.QUOTED_DISPATCH_FEE_KRW;
@@ -63,6 +116,7 @@ export class EmergencyLeadsService {
       customerName: null,
       userId: null,
       convertedOrderId: null,
+      convertedBookingId: null,
       createdAt: nowIso,
       updatedAt: nowIso,
     };
@@ -120,24 +174,52 @@ export class EmergencyLeadsService {
     });
     const saved = await this.repo.findById(id);
     if (!saved) throw new NotFoundException('emergency lead not found');
-    return saved;
+    await this.finalizeAwait(saved);
+    const out = await this.repo.findById(id);
+    if (!out) throw new NotFoundException('emergency lead not found');
+    return out;
   }
 
   async markTimeout(id: string, dto: PatchEmergencyLeadTimeoutDto): Promise<EmergencyLeadRow> {
     const row = await this.repo.findById(id);
     this.assertSession(row, dto.clientSessionId);
-    if (row.matchingStatus === 'contact_saved' || row.matchingStatus === 'converted_to_order') {
-      return row;
-    }
-    if (row.matchingStatus === 'timed_out') return row;
     const nowIso = new Date().toISOString();
+
+    if (row.matchingStatus === 'converted_to_order') {
+      await this.finalizeAwait(row);
+      const refreshed = await this.repo.findById(id);
+      if (!refreshed) throw new NotFoundException('emergency lead not found');
+      return refreshed;
+    }
+
+    if (row.matchingStatus === 'contact_saved') {
+      await this.finalizeAwait(row);
+      const refreshed = await this.repo.findById(id);
+      if (!refreshed) throw new NotFoundException('emergency lead not found');
+      return refreshed;
+    }
+
+    if (row.matchingStatus === 'timed_out') {
+      await this.finalizeAwait(row);
+      const refreshed = await this.repo.findById(id);
+      if (!refreshed) throw new NotFoundException('emergency lead not found');
+      return refreshed;
+    }
+
+    if (row.matchingStatus !== 'pending') {
+      throw new BadRequestException(`unexpected matchingStatus ${row.matchingStatus}`);
+    }
+
     await this.repo.updatePartial(id, {
       matchingStatus: 'timed_out',
       updatedAt: nowIso,
     });
     const next = await this.repo.findById(id);
     if (!next) throw new NotFoundException('emergency lead not found');
-    return next;
+    await this.finalizeAwait(next);
+    const out = await this.repo.findById(id);
+    if (!out) throw new NotFoundException('emergency lead not found');
+    return out;
   }
 
   async listAdmin(filters: EmergencyLeadListFilters): Promise<EmergencyLeadRow[]> {
@@ -157,6 +239,18 @@ export class EmergencyLeadsService {
     });
     const next = await this.repo.findById(id);
     if (!next) throw new NotFoundException('emergency lead not found');
+    if (dto.matchingStatus === 'converted_to_order') {
+      try {
+        await this.dispatchBridge.tryFinalizeLeadForced(next);
+      } catch (err) {
+        this.logger.warn(
+          `admin force finalize lead=${id} — ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+      const finalized = await this.repo.findById(id);
+      if (!finalized) throw new NotFoundException('emergency lead not found');
+      return finalized;
+    }
     return next;
   }
 }

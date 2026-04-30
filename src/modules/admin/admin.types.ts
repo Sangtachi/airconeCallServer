@@ -31,6 +31,8 @@ export interface Booking {
   assignedTechnicianId: string | null;
   paymentStatus: PaymentStatus;
   adminMemo?: string;
+  /** 긴급 접수 리드에서 자동 생성 시 원본 lead UUID */
+  sourceEmergencyLeadId?: string | null;
 }
 
 export interface Technician {

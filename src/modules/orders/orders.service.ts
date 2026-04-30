@@ -18,6 +18,7 @@ import type {
 import type { OrderPhotoKind, OrderPhotoRow } from './order-photo.types';
 import type { OrdersRepositoryPort } from './orders.repository.port';
 import { ORDERS_REPO } from './orders.repository.port';
+import type { EmergencyLeadRow } from '../emergency-leads/emergency-leads.types';
 import type { CustomerOrderRow } from './orders.types';
 import { CreateOrderDraftDto } from './dto/create-order-draft.dto';
 import type { PatchInstallOrderAdminDto } from './dto/patch-install-order-admin.dto';
@@ -114,6 +115,39 @@ export class OrdersService {
     @Inject(ORDERS_REPO) private readonly store: OrdersRepositoryPort,
     @Inject(SUPABASE_ADMIN) private readonly sb: SupabaseClient | null,
   ) {}
+
+  async createEmergencyLeadDraft(lead: EmergencyLeadRow, productId: string): Promise<CustomerOrderRow> {
+    const placeholderPhone = '01000001234';
+    const scheduleType = lead.urgency === 'scheduled' ? 'reservation' : 'same_day';
+    const digits = (lead.customerPhone ?? '').replace(/\D/g, '');
+    const customerPhone = digits.length >= 10 ? digits : placeholderPhone;
+    const customerName = (lead.customerName?.trim() ?? '') !== '' ? String(lead.customerName).trim() : '긴급 접수 고객';
+
+    let addressSummary = lead.locationText.trim();
+    if (addressSummary.length < 3) {
+      addressSummary = `${addressSummary} (주소 추가 확인)`.trim();
+    }
+    if (addressSummary.length < 3) {
+      addressSummary = '주소 확인 필요';
+    }
+
+    const memoParts = [
+      `[긴급 접수 리드 ${lead.id}]`,
+      `에어컨: ${lead.airconType || '-'}`,
+      `증상: ${lead.issueText || '-'}`,
+    ];
+    if (digits.length < 10) memoParts.push('실제 고객 전화 미확인 — placeholder 사용');
+
+    const dto = Object.assign(new CreateOrderDraftDto(), {
+      productId,
+      scheduleType,
+      customerName,
+      customerPhone,
+      addressSummary,
+      customerMemo: memoParts.join(' | '),
+    });
+    return this.createDraft(dto);
+  }
 
   async createDraft(dto: CreateOrderDraftDto): Promise<CustomerOrderRow> {
     const product = this.catalog.resolveProductPrice(dto.productId, dto.scheduleType);

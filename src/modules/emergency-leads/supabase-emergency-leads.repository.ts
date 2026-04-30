@@ -46,6 +46,7 @@ function fromDb(rec: Record<string, unknown>): EmergencyLeadRow {
     customerName: str(rec.customer_name),
     userId: str(rec.user_id),
     convertedOrderId: str(rec.converted_order_id),
+    convertedBookingId: str(rec.converted_booking_id),
     createdAt: String(rec.created_at ?? new Date().toISOString()),
     updatedAt: String(rec.updated_at ?? new Date().toISOString()),
   };
@@ -68,6 +69,7 @@ function toInsert(row: EmergencyLeadRow): Record<string, unknown> {
     customer_name: row.customerName ?? null,
     user_id: row.userId ?? null,
     converted_order_id: row.convertedOrderId ?? null,
+    converted_booking_id: row.convertedBookingId ?? null,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
   };
@@ -89,6 +91,7 @@ function patchToSnake(patch: Partial<EmergencyLeadRow>): Record<string, unknown>
   if (patch.customerName !== undefined) o.customer_name = patch.customerName ?? null;
   if (patch.userId !== undefined) o.user_id = patch.userId ?? null;
   if (patch.convertedOrderId !== undefined) o.converted_order_id = patch.convertedOrderId ?? null;
+  if (patch.convertedBookingId !== undefined) o.converted_booking_id = patch.convertedBookingId ?? null;
   if (patch.updatedAt !== undefined) o.updated_at = patch.updatedAt;
   return o;
 }

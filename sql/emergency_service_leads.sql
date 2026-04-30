@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS public.emergency_service_leads (
   customer_name text NULL,
   user_id text NULL,
   converted_order_id uuid NULL REFERENCES public.orders (id) ON DELETE SET NULL,
+  converted_booking_id text NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );

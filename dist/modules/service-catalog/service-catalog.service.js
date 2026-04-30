@@ -105,6 +105,19 @@ let ServiceCatalogService = ServiceCatalogService_1 = class ServiceCatalogServic
             throw new common_1.NotFoundException('service product not found');
         return row;
     }
+    resolveDefaultEmergencyProductId() {
+        const raw = process.env.EMERGENCY_DEFAULT_PRODUCT_ID?.trim();
+        if (raw) {
+            const row = this.products.find((p) => p.id === raw && p.isActive);
+            if (row)
+                return row.id;
+            this.logger.warn(`EMERGENCY_DEFAULT_PRODUCT_ID="${raw}" not found or inactive — using first active install product`);
+        }
+        const install = this.getProducts({ serviceType: 'install' });
+        if (install.length === 0)
+            throw new common_1.BadRequestException('No active install product for emergency order draft');
+        return install[0].id;
+    }
     getAddons(includeInactive = false) {
         let rows = [...this.addons];
         if (!includeInactive)

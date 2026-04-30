@@ -19,6 +19,7 @@ const node_crypto_1 = require("node:crypto");
 const database_tokens_1 = require("../../database/database.tokens");
 const service_catalog_service_1 = require("../service-catalog/service-catalog.service");
 const orders_repository_port_1 = require("./orders.repository.port");
+const create_order_draft_dto_1 = require("./dto/create-order-draft.dto");
 const order_photo_storage_paths_1 = require("./order-photo-storage.paths");
 function technicianIdForPhotosForeignKey(technicianId) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(technicianId.trim())
@@ -70,6 +71,36 @@ let OrdersService = OrdersService_1 = class OrdersService {
         this.store = store;
         this.sb = sb;
         this.photosMemory = new Map();
+    }
+    async createEmergencyLeadDraft(lead, productId) {
+        const placeholderPhone = '01000001234';
+        const scheduleType = lead.urgency === 'scheduled' ? 'reservation' : 'same_day';
+        const digits = (lead.customerPhone ?? '').replace(/\D/g, '');
+        const customerPhone = digits.length >= 10 ? digits : placeholderPhone;
+        const customerName = (lead.customerName?.trim() ?? '') !== '' ? String(lead.customerName).trim() : '긴급 접수 고객';
+        let addressSummary = lead.locationText.trim();
+        if (addressSummary.length < 3) {
+            addressSummary = `${addressSummary} (주소 추가 확인)`.trim();
+        }
+        if (addressSummary.length < 3) {
+            addressSummary = '주소 확인 필요';
+        }
+        const memoParts = [
+            `[긴급 접수 리드 ${lead.id}]`,
+            `에어컨: ${lead.airconType || '-'}`,
+            `증상: ${lead.issueText || '-'}`,
+        ];
+        if (digits.length < 10)
+            memoParts.push('실제 고객 전화 미확인 — placeholder 사용');
+        const dto = Object.assign(new create_order_draft_dto_1.CreateOrderDraftDto(), {
+            productId,
+            scheduleType,
+            customerName,
+            customerPhone,
+            addressSummary,
+            customerMemo: memoParts.join(' | '),
+        });
+        return this.createDraft(dto);
     }
     async createDraft(dto) {
         const product = this.catalog.resolveProductPrice(dto.productId, dto.scheduleType);

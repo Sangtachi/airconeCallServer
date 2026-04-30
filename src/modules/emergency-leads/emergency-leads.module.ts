@@ -2,6 +2,10 @@ import { Module } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DatabaseModule } from '../../database/database.module';
 import { SUPABASE_ADMIN } from '../../database/database.tokens';
+import { AdminModule } from '../admin/admin.module';
+import { OrdersModule } from '../orders/orders.module';
+import { ServiceCatalogModule } from '../service-catalog/service-catalog.module';
+import { EmergencyLeadDispatchBridge } from './emergency-lead-dispatch.bridge';
 import { EmergencyLeadsAdminController } from './emergency-leads-admin.controller';
 import { EmergencyLeadsPublicController } from './emergency-leads.public.controller';
 import { EMERGENCY_LEADS_REPO } from './emergency-leads.repository.port';
@@ -11,9 +15,10 @@ import { MemoryEmergencyLeadsRepository } from './memory-emergency-leads.reposit
 import { SupabaseEmergencyLeadsRepository } from './supabase-emergency-leads.repository';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, AdminModule, OrdersModule, ServiceCatalogModule],
   controllers: [EmergencyLeadsPublicController, EmergencyLeadsAdminController],
   providers: [
+    EmergencyLeadDispatchBridge,
     EmergencyLeadsService,
     {
       provide: EMERGENCY_LEADS_REPO,

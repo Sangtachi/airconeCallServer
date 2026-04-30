@@ -265,6 +265,21 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+function formatDetailPanel(row) {
+  if (!row) return '';
+  let text = JSON.stringify(row, null, 2);
+  if (active.id === 'bookings' && row.sourceEmergencyLeadId) {
+    text += `\n---\n원본 긴급 접수 리드 · ${String(row.sourceEmergencyLeadId)}\n(주문 초안은 긴급 접수 탭의 convertedOrderId 또는 설치주문 목록 참고)`;
+  }
+  if (active.id === 'emergency_leads') {
+    const lines = [];
+    if (row.convertedBookingId) lines.push(`접수/배차(booking): ${row.convertedBookingId}`);
+    if (row.convertedOrderId) lines.push(`설치 주문 초안(order): ${row.convertedOrderId}`);
+    if (lines.length) text += `\n---\n${lines.join('\n')}`;
+  }
+  return text;
+}
+
 function formatCell(v) {
   if (v === null || v === undefined) return '';
   if (typeof v === 'object') return JSON.stringify(v);
@@ -342,7 +357,7 @@ function wireTableHandlers() {
       selected = rows.find((r) => r.id === id) || null;
       $list.querySelectorAll('tr.data-row').forEach((r) => r.classList.remove('row-selected'));
       tr.classList.add('row-selected');
-      $detail.textContent = selected ? JSON.stringify(selected, null, 2) : '';
+      $detail.textContent = selected ? formatDetailPanel(selected) : '';
       renderActions();
     });
   });
@@ -566,7 +581,7 @@ async function load() {
       const tr = $list.querySelector(`tr[data-id="${selected.id.replace(/"/g, '')}"]`);
       if (tr) tr.classList.add('row-selected');
     }
-    $detail.textContent = JSON.stringify(selected, null, 2);
+    $detail.textContent = formatDetailPanel(selected);
     renderActions();
   } catch (e) {
     $list.innerHTML = `<p class="muted">오류: ${escapeHtml(e.message)}</p>`;

@@ -11,10 +11,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var EmergencyLeadsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmergencyLeadsService = void 0;
 const common_1 = require("@nestjs/common");
 const node_crypto_1 = require("node:crypto");
+const emergency_lead_dispatch_bridge_1 = require("./emergency-lead-dispatch.bridge");
 const emergency_leads_repository_port_1 = require("./emergency-leads.repository.port");
 function normalizeDigitsPhone(v) {
     const d = v.replace(/\D/g, '');
@@ -26,9 +28,41 @@ function trimEmptyToNull(v) {
     const t = String(v).trim();
     return t === '' ? null : t;
 }
-let EmergencyLeadsService = class EmergencyLeadsService {
-    constructor(repo) {
+const FINALIZE_SWEEP_MS = 45_000;
+let EmergencyLeadsService = EmergencyLeadsService_1 = class EmergencyLeadsService {
+    constructor(repo, dispatchBridge) {
         this.repo = repo;
+        this.dispatchBridge = dispatchBridge;
+        this.logger = new common_1.Logger(EmergencyLeadsService_1.name);
+        this.sweepTimer = null;
+    }
+    onModuleInit() {
+        this.sweepTimer = setInterval(() => {
+            void this.runDeadlineSweep().catch((e) => this.logger.warn(`deadline sweep: ${e instanceof Error ? e.message : String(e)}`));
+        }, FINALIZE_SWEEP_MS);
+    }
+    onModuleDestroy() {
+        if (this.sweepTimer) {
+            clearInterval(this.sweepTimer);
+            this.sweepTimer = null;
+        }
+    }
+    async finalizeAwait(row) {
+        try {
+            await this.dispatchBridge.tryFinalizeLead(row);
+        }
+        catch (err) {
+            this.logger.warn(`finalize lead=${row.id} — ${err instanceof Error ? err.message : String(err)}`);
+        }
+    }
+    finalizeSweepFireAndForget(row) {
+        void this.finalizeAwait(row);
+    }
+    async runDeadlineSweep() {
+        const rows = await this.repo.list({});
+        for (const r of rows) {
+            this.finalizeSweepFireAndForget(r);
+        }
     }
     quotedFeeKrw() {
         const raw = process.env.QUOTED_DISPATCH_FEE_KRW;
@@ -66,6 +100,7 @@ let EmergencyLeadsService = class EmergencyLeadsService {
             customerName: null,
             userId: null,
             convertedOrderId: null,
+            convertedBookingId: null,
             createdAt: nowIso,
             updatedAt: nowIso,
         };
@@ -118,17 +153,40 @@ let EmergencyLeadsService = class EmergencyLeadsService {
         const saved = await this.repo.findById(id);
         if (!saved)
             throw new common_1.NotFoundException('emergency lead not found');
-        return saved;
+        await this.finalizeAwait(saved);
+        const out = await this.repo.findById(id);
+        if (!out)
+            throw new common_1.NotFoundException('emergency lead not found');
+        return out;
     }
     async markTimeout(id, dto) {
         const row = await this.repo.findById(id);
         this.assertSession(row, dto.clientSessionId);
-        if (row.matchingStatus === 'contact_saved' || row.matchingStatus === 'converted_to_order') {
-            return row;
-        }
-        if (row.matchingStatus === 'timed_out')
-            return row;
         const nowIso = new Date().toISOString();
+        if (row.matchingStatus === 'converted_to_order') {
+            await this.finalizeAwait(row);
+            const refreshed = await this.repo.findById(id);
+            if (!refreshed)
+                throw new common_1.NotFoundException('emergency lead not found');
+            return refreshed;
+        }
+        if (row.matchingStatus === 'contact_saved') {
+            await this.finalizeAwait(row);
+            const refreshed = await this.repo.findById(id);
+            if (!refreshed)
+                throw new common_1.NotFoundException('emergency lead not found');
+            return refreshed;
+        }
+        if (row.matchingStatus === 'timed_out') {
+            await this.finalizeAwait(row);
+            const refreshed = await this.repo.findById(id);
+            if (!refreshed)
+                throw new common_1.NotFoundException('emergency lead not found');
+            return refreshed;
+        }
+        if (row.matchingStatus !== 'pending') {
+            throw new common_1.BadRequestException(`unexpected matchingStatus ${row.matchingStatus}`);
+        }
         await this.repo.updatePartial(id, {
             matchingStatus: 'timed_out',
             updatedAt: nowIso,
@@ -136,7 +194,11 @@ let EmergencyLeadsService = class EmergencyLeadsService {
         const next = await this.repo.findById(id);
         if (!next)
             throw new common_1.NotFoundException('emergency lead not found');
-        return next;
+        await this.finalizeAwait(next);
+        const out = await this.repo.findById(id);
+        if (!out)
+            throw new common_1.NotFoundException('emergency lead not found');
+        return out;
     }
     async listAdmin(filters) {
         return this.repo.list(filters);
@@ -156,13 +218,25 @@ let EmergencyLeadsService = class EmergencyLeadsService {
         const next = await this.repo.findById(id);
         if (!next)
             throw new common_1.NotFoundException('emergency lead not found');
+        if (dto.matchingStatus === 'converted_to_order') {
+            try {
+                await this.dispatchBridge.tryFinalizeLeadForced(next);
+            }
+            catch (err) {
+                this.logger.warn(`admin force finalize lead=${id} — ${err instanceof Error ? err.message : String(err)}`);
+            }
+            const finalized = await this.repo.findById(id);
+            if (!finalized)
+                throw new common_1.NotFoundException('emergency lead not found');
+            return finalized;
+        }
         return next;
     }
 };
 exports.EmergencyLeadsService = EmergencyLeadsService;
-exports.EmergencyLeadsService = EmergencyLeadsService = __decorate([
+exports.EmergencyLeadsService = EmergencyLeadsService = EmergencyLeadsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(emergency_leads_repository_port_1.EMERGENCY_LEADS_REPO)),
-    __metadata("design:paramtypes", [Object])
+    __metadata("design:paramtypes", [Object, emergency_lead_dispatch_bridge_1.EmergencyLeadDispatchBridge])
 ], EmergencyLeadsService);
 //# sourceMappingURL=emergency-leads.service.js.map
