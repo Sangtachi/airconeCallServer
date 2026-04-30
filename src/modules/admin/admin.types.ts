@@ -71,6 +71,9 @@ export interface Payment {
   paymentType: 'deposit' | 'final' | 'extra' | 'cancellation_fee';
   provider: 'manual' | 'toss' | 'portone';
   status: PaymentStatus;
+  /** payments.order_id (Supabase 적용 시) */
+  orderId?: string;
+  dataSource?: 'memory' | 'database';
 }
 
 export interface Settlement {
@@ -84,6 +87,9 @@ export interface Settlement {
   technicianAmount: number;
   adjustmentAmount: number;
   status: SettlementStatus;
+  /** order_settlements.order_id */
+  orderId?: string;
+  dataSource?: 'memory' | 'database';
 }
 
 export interface Coupon {

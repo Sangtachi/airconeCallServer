@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 다른 포트(예: Vite)에서 이 HTML 을 열 때 API 베이스를 지정: http://127.0.0.1:4000 -->
+    <script>
+      window.__ADMIN_API_BASE__ = window.__ADMIN_API_BASE__ || '';
+    </script>
     <title>에어컨콜 관리자</title>
     <link rel="stylesheet" href="/admin/styles.css" />
   </head>
@@ -16,7 +20,10 @@
         <header class="top">
           <div>
             <h2 id="title">회원관리</h2>
-            <p class="muted">x-admin-role 헤더 기반 임시 인증</p>
+            <p class="muted">
+              x-admin-role 헤더 기반 임시 인증 · API 는 이 페이지와 같은 호스트(<code>Nest 기본 :4000</code>)를 씁니다. Vite 에서 여는 경우
+              <code>__ADMIN_API_BASE__</code>를 설정하세요.
+            </p>
           </div>
           <label>Role
             <select id="role">
@@ -29,6 +36,17 @@
           <div id="toolbar"></div>
           <div id="list"></div>
         </section>
+        <div id="modalRoot" class="modal-root hidden" aria-hidden="true">
+          <div class="modal-backdrop" id="modalBackdrop"></div>
+          <div class="modal-dialog" role="dialog" aria-modal="true">
+            <h3 id="modalTitle" class="modal-title"></h3>
+            <form id="modalForm" class="modal-form"></form>
+            <div class="modal-actions">
+              <button type="button" class="ghost" id="modalCancel">취소</button>
+              <button type="submit" form="modalForm" class="primary" id="modalSubmit">저장</button>
+            </div>
+          </div>
+        </div>
         <section class="panel">
           <h3>상세/액션</h3>
           <pre id="detail"></pre>

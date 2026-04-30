@@ -16,7 +16,21 @@ let AppController = class AppController {
         return;
     }
     health() {
-        return { status: 'ok' };
+        return {
+            status: 'ok',
+            uptimeSeconds: Math.round(process.uptime()),
+            pid: process.pid,
+        };
+    }
+    metrics() {
+        const m = process.memoryUsage();
+        return {
+            uptimeSeconds: Math.round(process.uptime()),
+            rssBytes: m.rss,
+            heapUsedBytes: m.heapUsed,
+            heapTotalBytes: m.heapTotal,
+            date: new Date().toISOString(),
+        };
     }
 };
 exports.AppController = AppController;
@@ -33,6 +47,12 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AppController.prototype, "health", null);
+__decorate([
+    (0, common_1.Get)('metrics'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AppController.prototype, "metrics", null);
 exports.AppController = AppController = __decorate([
     (0, common_1.Controller)()
 ], AppController);

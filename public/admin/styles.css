@@ -18,6 +18,31 @@ input, select, button, textarea { border:1px solid #cbd5e1; border-radius:10px; 
 button.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
 pre { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px; max-height:220px; overflow:auto; }
 .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+tr.row-selected { background: #e0efff; }
+th.col-check, td.col-check { width: 40px; text-align: center; }
+td.col-check, td.col-id { cursor: default; }
+td.col-check input { cursor: pointer; }
+button.id-link {
+  background: none; border: 0; padding: 0; color: #1d4ed8; font-weight: 600;
+  text-decoration: underline; cursor: pointer; font-size: inherit;
+}
+button.id-link:hover { color: #1e40af; }
+button.ghost { background: #f1f5f9; border-color: #cbd5e1; }
+button.danger { background: #dc2626; color: #fff; border-color: #dc2626; }
+.modal-root { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal-root.hidden { display: none; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.45); }
+.modal-dialog {
+  position: relative; z-index: 1; width: min(480px, 100%); max-height: 90vh; overflow: auto;
+  background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+}
+.modal-title { margin: 0 0 16px; font-size: 18px; }
+.modal-form { display: flex; flex-direction: column; gap: 12px; }
+.modal-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #475569; }
+.modal-form input, .modal-form select, .modal-form textarea { width: 100%; }
+.modal-form textarea { min-height: 72px; resize: vertical; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.row-check { width: 16px; height: 16px; }
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; }
   .sidebar { position: sticky; top: 0; z-index: 5; }

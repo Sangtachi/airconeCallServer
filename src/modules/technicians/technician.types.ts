@@ -1,0 +1,35 @@
+import type { CatalogAirconType, CatalogServiceType } from '../service-catalog/service-catalog.types';
+
+export type TechnicianSignupStatus =
+  | 'pending'
+  | 'reviewing'
+  | 'approved'
+  | 'rejected'
+  | 'suspended';
+
+export type TechnicianWorkStatus = 'offline' | 'available' | 'busy' | 'reserved_only';
+
+export interface TechnicianCapability {
+  serviceType: CatalogServiceType;
+  airconType: CatalogAirconType;
+}
+
+export interface TechnicianEntity {
+  id: string;
+  name: string;
+  phone: string;
+  businessType: 'individual' | 'sole_business' | 'company';
+  businessNumber: string | null;
+  status: TechnicianSignupStatus;
+  workStatus: TechnicianWorkStatus;
+  baseRegion: string | null;
+  bankName: string | null;
+  bankAccount: string | null;
+  bankHolder: string | null;
+  platformFeeRate: number;
+  profilePhotoUrl: string | null;
+  rejectReason: string | null;
+  memo: string | null;
+  createdAt: string;
+  capabilities: TechnicianCapability[];
+}

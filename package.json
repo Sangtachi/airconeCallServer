@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "smoke-local": "bash scripts/smoke-local.sh",
+    "test:e2e-base": "node scripts/e2e-admin.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.19",
@@ -14,14 +16,18 @@
     "@nestjs/platform-express": "^11.1.19",
     "@nestjs/serve-static": "^5.0.5",
     "@nestjs/swagger": "^11.4.2",
+    "@supabase/supabase-js": "^2.105.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "jsonwebtoken": "^9.0.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^1.4.13",
     "@types/node": "^25.6.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

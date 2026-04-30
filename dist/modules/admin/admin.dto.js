@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ReviewOnboardingDto = exports.UpdateCouponDto = exports.CreateCouponDto = exports.UpdateSettlementStatusDto = exports.ConfirmSettlementDto = exports.CancelPaymentDto = exports.UpdateTechnicianDto = exports.CreateBookingDto = exports.UpdateMemberDto = exports.CreateMemberDto = exports.CreateTechnicianDto = exports.UpdateBookingStatusDto = exports.AssignTechnicianDto = void 0;
+exports.ReviewOnboardingDto = exports.UpdateCouponDto = exports.CreateCouponDto = exports.UpdateSettlementStatusDto = exports.ConfirmSettlementDto = exports.CancelPaymentDto = exports.UpdateOnboardingDto = exports.UpdateTechnicianDto = exports.UpdateBookingDto = exports.CreateBookingDto = exports.UpdateMemberDto = exports.CreateMemberDto = exports.CreateTechnicianDto = exports.UpdateBookingStatusDto = exports.AssignTechnicianDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 class AssignTechnicianDto {
@@ -93,11 +93,23 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateMemberDto.prototype, "name", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMemberDto.prototype, "phone", void 0);
+__decorate([
     (0, swagger_1.ApiProperty)({ required: false, enum: ['active', 'inactive', 'banned'] }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsIn)(['active', 'inactive', 'banned']),
     __metadata("design:type", String)
 ], UpdateMemberDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateMemberDto.prototype, "marketingConsent", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ required: false }),
     (0, class_validator_1.IsOptional)(),
@@ -127,6 +139,39 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateBookingDto.prototype, "symptomCode", void 0);
+class UpdateBookingDto {
+}
+exports.UpdateBookingDto = UpdateBookingDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateBookingDto.prototype, "customerName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateBookingDto.prototype, "customerPhone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateBookingDto.prototype, "region", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateBookingDto.prototype, "symptomCode", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateBookingDto.prototype, "adminMemo", void 0);
 class UpdateTechnicianDto {
 }
 exports.UpdateTechnicianDto = UpdateTechnicianDto;
@@ -141,6 +186,12 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
+], UpdateTechnicianDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateTechnicianDto.prototype, "baseRegion", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ required: false, enum: ['pending', 'approved', 'rejected', 'suspended'] }),
@@ -148,6 +199,21 @@ __decorate([
     (0, class_validator_1.IsIn)(['pending', 'approved', 'rejected', 'suspended']),
     __metadata("design:type", String)
 ], UpdateTechnicianDto.prototype, "status", void 0);
+class UpdateOnboardingDto {
+}
+exports.UpdateOnboardingDto = UpdateOnboardingDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateOnboardingDto.prototype, "name", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateOnboardingDto.prototype, "phone", void 0);
 class CancelPaymentDto {
 }
 exports.CancelPaymentDto = CancelPaymentDto;

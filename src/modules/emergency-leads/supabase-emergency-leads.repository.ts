@@ -1,0 +1,134 @@
+import { BadRequestException } from '@nestjs/common';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { EmergencyLeadsRepositoryPort } from './emergency-leads.repository.port';
+import type { EmergencyLeadListFilters, EmergencyLeadRow } from './emergency-leads.types';
+
+function num(v: unknown, fallback = 0): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string' && v !== '') return Number(v) || fallback;
+  return fallback;
+}
+
+function str(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s === '' ? null : s;
+}
+
+const STATUSES: EmergencyLeadRow['matchingStatus'][] = [
+  'pending',
+  'timed_out',
+  'contact_saved',
+  'converted_to_order',
+];
+
+function fromDb(rec: Record<string, unknown>): EmergencyLeadRow {
+  const stRaw = String(rec.matching_status ?? 'pending');
+  const matchingStatus: EmergencyLeadRow['matchingStatus'] = STATUSES.includes(
+    stRaw as EmergencyLeadRow['matchingStatus'],
+  )
+    ? (stRaw as EmergencyLeadRow['matchingStatus'])
+    : 'pending';
+
+  return {
+    id: String(rec.id),
+    clientSessionId: String(rec.client_session_id),
+    locationText: String(rec.location_text),
+    airconType: String(rec.aircon_type ?? ''),
+    issueText: String(rec.issue_text ?? ''),
+    urgency: String(rec.urgency) === 'scheduled' ? 'scheduled' : 'now',
+    quotedFeeKrw: num(rec.quoted_fee_krw, 30000),
+    matchingTimeoutSeconds: num(rec.matching_timeout_seconds, 40),
+    matchingStartedAt: String(rec.matching_started_at ?? rec.created_at),
+    matchingDeadlineAt: String(rec.matching_deadline_at),
+    matchingStatus,
+    customerPhone: str(rec.customer_phone),
+    customerName: str(rec.customer_name),
+    userId: str(rec.user_id),
+    convertedOrderId: str(rec.converted_order_id),
+    createdAt: String(rec.created_at ?? new Date().toISOString()),
+    updatedAt: String(rec.updated_at ?? new Date().toISOString()),
+  };
+}
+
+function toInsert(row: EmergencyLeadRow): Record<string, unknown> {
+  return {
+    id: row.id,
+    client_session_id: row.clientSessionId,
+    location_text: row.locationText,
+    aircon_type: row.airconType,
+    issue_text: row.issueText,
+    urgency: row.urgency,
+    quoted_fee_krw: row.quotedFeeKrw,
+    matching_timeout_seconds: row.matchingTimeoutSeconds,
+    matching_started_at: row.matchingStartedAt,
+    matching_deadline_at: row.matchingDeadlineAt,
+    matching_status: row.matchingStatus,
+    customer_phone: row.customerPhone ?? null,
+    customer_name: row.customerName ?? null,
+    user_id: row.userId ?? null,
+    converted_order_id: row.convertedOrderId ?? null,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  };
+}
+
+function patchToSnake(patch: Partial<EmergencyLeadRow>): Record<string, unknown> {
+  const o: Record<string, unknown> = {};
+  if (patch.clientSessionId !== undefined) o.client_session_id = patch.clientSessionId;
+  if (patch.locationText !== undefined) o.location_text = patch.locationText;
+  if (patch.airconType !== undefined) o.aircon_type = patch.airconType;
+  if (patch.issueText !== undefined) o.issue_text = patch.issueText;
+  if (patch.urgency !== undefined) o.urgency = patch.urgency;
+  if (patch.quotedFeeKrw !== undefined) o.quoted_fee_krw = patch.quotedFeeKrw;
+  if (patch.matchingTimeoutSeconds !== undefined) o.matching_timeout_seconds = patch.matchingTimeoutSeconds;
+  if (patch.matchingStartedAt !== undefined) o.matching_started_at = patch.matchingStartedAt;
+  if (patch.matchingDeadlineAt !== undefined) o.matching_deadline_at = patch.matchingDeadlineAt;
+  if (patch.matchingStatus !== undefined) o.matching_status = patch.matchingStatus;
+  if (patch.customerPhone !== undefined) o.customer_phone = patch.customerPhone ?? null;
+  if (patch.customerName !== undefined) o.customer_name = patch.customerName ?? null;
+  if (patch.userId !== undefined) o.user_id = patch.userId ?? null;
+  if (patch.convertedOrderId !== undefined) o.converted_order_id = patch.convertedOrderId ?? null;
+  if (patch.updatedAt !== undefined) o.updated_at = patch.updatedAt;
+  return o;
+}
+
+export class SupabaseEmergencyLeadsRepository implements EmergencyLeadsRepositoryPort {
+  constructor(private readonly client: SupabaseClient) {}
+
+  async insert(row: EmergencyLeadRow): Promise<void> {
+    const { error } = await this.client.from('emergency_service_leads').insert(toInsert(row));
+    if (error) throw new BadRequestException(error.message);
+  }
+
+  async findById(id: string): Promise<EmergencyLeadRow | null> {
+    const { data, error } = await this.client
+      .from('emergency_service_leads')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw new BadRequestException(error.message);
+    if (!data) return null;
+    return fromDb(data as Record<string, unknown>);
+  }
+
+  async list(filters: EmergencyLeadListFilters): Promise<EmergencyLeadRow[]> {
+    let q = this.client.from('emergency_service_leads').select('*').order('created_at', {
+      ascending: false,
+    });
+    if (filters.matchingStatus) q = q.eq('matching_status', filters.matchingStatus);
+    if (filters.fromIso) q = q.gte('created_at', filters.fromIso);
+    if (filters.toIso) q = q.lte('created_at', filters.toIso);
+    const { data, error } = await q;
+    if (error) throw new BadRequestException(error.message);
+    const rows = (data ?? []) as Record<string, unknown>[];
+    return rows.map(fromDb);
+  }
+
+  async updatePartial(id: string, patch: Partial<EmergencyLeadRow>): Promise<void> {
+    const snake = patchToSnake(patch);
+    if (Object.keys(snake).length === 0) return;
+    const { error } = await this.client.from('emergency_service_leads').update(snake).eq('id', id);
+    if (error) throw new BadRequestException(error.message);
+  }
+}

@@ -15,12 +15,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
-const admin_role_guard_1 = require("../../common/admin-role.guard");
+const technicians_service_1 = require("../technicians/technicians.service");
+const admin_access_guard_1 = require("./admin-access.guard");
 const admin_service_1 = require("./admin.service");
 const admin_dto_1 = require("./admin.dto");
 let AdminController = class AdminController {
-    constructor(service) {
+    constructor(service, technicians) {
         this.service = service;
+        this.technicians = technicians;
     }
     dashboard() { return this.service.getDashboard(); }
     getMembers() { return this.service.getMembers(); }
@@ -28,6 +30,9 @@ let AdminController = class AdminController {
     createMember(dto) { return this.service.createMember(dto); }
     updateMember(id, dto) {
         return this.service.updateMember(id, dto);
+    }
+    deleteMember(id) {
+        return this.service.deleteMember(id);
     }
     getBookings() { return this.service.getBookings(); }
     createBooking(dto) { return this.service.createBooking(dto); }
@@ -39,32 +44,69 @@ let AdminController = class AdminController {
     updateStatus(id, dto) {
         return this.service.updateBookingStatus(id, dto);
     }
-    getTechnicians() { return this.service.getTechnicians(); }
-    getOnboarding() { return this.service.getOnboarding(); }
+    updateBooking(id, dto) {
+        return this.service.updateBooking(id, dto);
+    }
+    deleteBooking(id) {
+        return this.service.deleteBooking(id);
+    }
+    getTechnicians() {
+        return this.technicians.listAllBrief();
+    }
+    getOnboarding() {
+        return this.technicians.getOnboardingRecords();
+    }
     reviewOnboarding(id, dto) {
-        return this.service.reviewOnboarding(id, dto);
+        return this.technicians.reviewOnboarding(id, dto);
+    }
+    updateOnboarding(id, dto) {
+        return this.technicians.updateOnboardingRecord(id, dto);
+    }
+    deleteOnboarding(id) {
+        return this.technicians.deleteOnboardingRecord(id);
     }
     createTechnician(dto) {
-        return this.service.createTechnician(dto);
+        return this.technicians.createByAdmin(dto);
     }
     updateTechnician(id, dto) {
-        return this.service.updateTechnician(id, dto);
+        return this.technicians.updateByAdmin(id, dto);
+    }
+    deleteTechnician(id) {
+        return this.technicians.deleteByAdmin(id);
     }
     getPayments() { return this.service.getPayments(); }
     cancelPayment(id, dto, idempotencyKey) {
         return this.service.cancelPayment(id, dto, idempotencyKey);
     }
     getSettlements() { return this.service.getSettlements(); }
-    confirmSettlement(id, dto, idempotencyKey) {
-        return this.service.confirmSettlement(id, dto, idempotencyKey);
+    confirmSettlement(req, id, dto, idempotencyKey) {
+        return this.service.confirmSettlement(id, dto, idempotencyKey, {
+            actor: req.adminSubject ?? 'admin',
+            idempotencyKey,
+        });
     }
-    updateSettlementStatus(id, dto) {
-        return this.service.updateSettlementStatus(id, dto);
+    updateSettlementStatus(req, id, dto, idempotencyKey) {
+        return this.service.updateSettlementStatus(id, dto, {
+            actor: req.adminSubject ?? 'admin',
+            idempotencyKey,
+        });
+    }
+    deleteSettlement(req, id, idempotencyKey) {
+        return this.service.deleteSettlement(id, {
+            actor: req.adminSubject ?? 'admin',
+            idempotencyKey,
+        });
+    }
+    settlementEvents(orderId) {
+        return this.service.listSettlementEvents(orderId);
     }
     getCoupons() { return this.service.getCoupons(); }
     createCoupon(dto) { return this.service.createCoupon(dto); }
     updateCoupon(id, dto) {
         return this.service.updateCoupon(id, dto);
+    }
+    deleteCoupon(id) {
+        return this.service.deleteCoupon(id);
     }
     getLogs() { return this.service.getAdminLogs(); }
 };
@@ -103,6 +145,13 @@ __decorate([
     __metadata("design:paramtypes", [String, admin_dto_1.UpdateMemberDto]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "updateMember", null);
+__decorate([
+    (0, common_1.Delete)('members/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "deleteMember", null);
 __decorate([
     (0, common_1.Get)('bookings'),
     __metadata("design:type", Function),
@@ -147,6 +196,21 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "updateStatus", null);
 __decorate([
+    (0, common_1.Patch)('bookings/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, admin_dto_1.UpdateBookingDto]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "updateBooking", null);
+__decorate([
+    (0, common_1.Delete)('bookings/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "deleteBooking", null);
+__decorate([
     (0, common_1.Get)('technicians'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
@@ -167,6 +231,21 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "reviewOnboarding", null);
 __decorate([
+    (0, common_1.Patch)('technician-onboarding/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, admin_dto_1.UpdateOnboardingDto]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "updateOnboarding", null);
+__decorate([
+    (0, common_1.Delete)('technician-onboarding/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "deleteOnboarding", null);
+__decorate([
     (0, common_1.Post)('technicians'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -181,6 +260,13 @@ __decorate([
     __metadata("design:paramtypes", [String, admin_dto_1.UpdateTechnicianDto]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "updateTechnician", null);
+__decorate([
+    (0, common_1.Delete)('technicians/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "deleteTechnician", null);
 __decorate([
     (0, common_1.Get)('payments'),
     __metadata("design:type", Function),
@@ -204,21 +290,42 @@ __decorate([
 ], AdminController.prototype, "getSettlements", null);
 __decorate([
     (0, common_1.Post)('settlements/:id/confirm'),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
-    __param(2, (0, common_1.Headers)('idempotency-key')),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __param(3, (0, common_1.Headers)('idempotency-key')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, admin_dto_1.ConfirmSettlementDto, String]),
+    __metadata("design:paramtypes", [Object, String, admin_dto_1.ConfirmSettlementDto, String]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "confirmSettlement", null);
 __decorate([
     (0, common_1.Patch)('settlements/:id/status'),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __param(3, (0, common_1.Headers)('idempotency-key')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, admin_dto_1.UpdateSettlementStatusDto]),
+    __metadata("design:paramtypes", [Object, String, admin_dto_1.UpdateSettlementStatusDto, String]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "updateSettlementStatus", null);
+__decorate([
+    (0, common_1.Delete)('settlements/:id'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Headers)('idempotency-key')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "deleteSettlement", null);
+__decorate([
+    (0, common_1.Get)('settlement-events'),
+    (0, swagger_1.ApiOperation)({ summary: '정산 변경 감사(멱등키·액터 포함, Supabase DDL 필요)' }),
+    (0, swagger_1.ApiQuery)({ name: 'orderId', required: false }),
+    __param(0, (0, common_1.Query)('orderId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "settlementEvents", null);
 __decorate([
     (0, common_1.Get)('coupons'),
     __metadata("design:type", Function),
@@ -241,6 +348,13 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "updateCoupon", null);
 __decorate([
+    (0, common_1.Delete)('coupons/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "deleteCoupon", null);
+__decorate([
     (0, common_1.Get)('logs'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
@@ -248,9 +362,15 @@ __decorate([
 ], AdminController.prototype, "getLogs", null);
 exports.AdminController = AdminController = __decorate([
     (0, swagger_1.ApiTags)('admin'),
-    (0, swagger_1.ApiHeader)({ name: 'x-admin-role', required: true, description: 'admin | super_admin' }),
-    (0, common_1.UseGuards)(admin_role_guard_1.AdminRoleGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiHeader)({
+        name: 'x-admin-role',
+        required: false,
+        description: '레거시 허용 시(ADMIN_LEGACY_X_ADMIN_ROLE unset|1). Bearer JWT 권장.',
+    }),
+    (0, common_1.UseGuards)(admin_access_guard_1.AdminAccessGuard),
     (0, common_1.Controller)('admin'),
-    __metadata("design:paramtypes", [admin_service_1.AdminService])
+    __metadata("design:paramtypes", [admin_service_1.AdminService,
+        technicians_service_1.TechniciansService])
 ], AdminController);
 //# sourceMappingURL=admin.controller.js.map

@@ -1,0 +1,159 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes, ApiHeader, ApiTags } from '@nestjs/swagger';
+import type { Express } from 'express';
+import { TechnicianCreateQuoteDto } from '../orders/dto/extra-quotes.dto';
+import {
+  TechnicianPhotoConfirmDto,
+  TechnicianPhotoMultipartMetaDto,
+  TechnicianPhotoPresignDto,
+} from '../orders/dto/technician-photo-upload.dto';
+import { ExtraQuotesService } from '../orders/extra-quotes.service';
+import { OrdersService } from '../orders/orders.service';
+import { TechnicianApprovedGuard, type TechnicianRequest } from './technician-approved.guard';
+import { TechnicianOrderPhotoDto } from './technician.dto';
+
+const ALLOWED_IMAGE_MIME = /^image\/(jpeg|jpg|png|webp|heic|heif)$/i;
+
+@ApiTags('technician-portal')
+@ApiHeader({ name: 'x-technician-id', required: true })
+@UseGuards(TechnicianApprovedGuard)
+@Controller()
+export class TechnicianPortalController {
+  constructor(
+    private readonly orders: OrdersService,
+    private readonly extraQuotes: ExtraQuotesService,
+  ) {}
+
+  @Get('technician/me')
+  me(@Req() req: TechnicianRequest) {
+    const t = req.technician!;
+    return {
+      id: t.id,
+      name: t.name,
+      phone: `${t.phone.slice(0, 3)}****${t.phone.slice(-4)}`,
+      status: t.status,
+      workStatus: t.workStatus,
+      baseRegion: t.baseRegion,
+      capabilities: t.capabilities,
+    };
+  }
+
+  @Get('technician/jobs')
+  jobs(@Req() req: TechnicianRequest) {
+    return this.orders.technicianListJobs(req.technician!.id);
+  }
+
+  @Get('technician/jobs/:orderId')
+  jobDetail(@Req() req: TechnicianRequest, @Param('orderId') orderId: string) {
+    return this.orders.technicianGetJob(req.technician!.id, orderId);
+  }
+
+  @Patch('technician/jobs/:orderId/accept')
+  accept(@Req() req: TechnicianRequest, @Param('orderId') orderId: string) {
+    return this.orders.technicianAcceptJob(req.technician!.id, orderId);
+  }
+
+  @Patch('technician/jobs/:orderId/depart')
+  depart(@Req() req: TechnicianRequest, @Param('orderId') orderId: string) {
+    return this.orders.technicianDepartJob(req.technician!.id, orderId);
+  }
+
+  @Patch('technician/jobs/:orderId/start')
+  start(@Req() req: TechnicianRequest, @Param('orderId') orderId: string) {
+    return this.orders.technicianStartWork(req.technician!.id, orderId);
+  }
+
+  @Patch('technician/jobs/:orderId/complete')
+  complete(@Req() req: TechnicianRequest, @Param('orderId') orderId: string) {
+    return this.orders.technicianCompleteJob(req.technician!.id, orderId);
+  }
+
+  @Get('technician/settlements')
+  settlements(@Req() req: TechnicianRequest) {
+    return this.orders.technicianListSettlements(req.technician!.id);
+  }
+
+  @Get('technician/materials')
+  materials(@Req() req: TechnicianRequest) {
+    void req.technician;
+    return this.orders.technicianListMaterials();
+  }
+
+  @Post('technician/jobs/:orderId/extra-quotes')
+  createExtraQuote(
+    @Req() req: TechnicianRequest,
+    @Param('orderId') orderId: string,
+    @Body() dto: TechnicianCreateQuoteDto,
+  ) {
+    return this.extraQuotes.technicianCreateQuote(req.technician!.id, orderId, dto);
+  }
+
+  @Get('technician/jobs/:orderId/extra-quotes')
+  listExtraQuotes(@Req() req: TechnicianRequest, @Param('orderId') orderId: string) {
+    return this.extraQuotes.technicianListQuotes(req.technician!.id, orderId);
+  }
+
+  @Get('technician/jobs/:orderId/photos')
+  listPhotos(@Req() req: TechnicianRequest, @Param('orderId') orderId: string) {
+    return this.orders.technicianListOrderPhotos(req.technician!.id, orderId);
+  }
+
+  /** 기존: 공개 URL 문자열 등록(Supabase + 메모리). */
+  @Post('technician/jobs/:orderId/photos')
+  addPhoto(
+    @Req() req: TechnicianRequest,
+    @Param('orderId') orderId: string,
+    @Body() dto: TechnicianOrderPhotoDto,
+  ) {
+    return this.orders.technicianAddOrderPhoto(req.technician!.id, orderId, dto);
+  }
+
+  @Post('technician/jobs/:orderId/photos/presign')
+  presignPhoto(
+    @Req() req: TechnicianRequest,
+    @Param('orderId') orderId: string,
+    @Body() dto: TechnicianPhotoPresignDto,
+  ) {
+    return this.orders.technicianPresignOrderPhoto(req.technician!.id, orderId, dto);
+  }
+
+  @Post('technician/jobs/:orderId/photos/confirm-upload')
+  confirmUploadedPhoto(
+    @Req() req: TechnicianRequest,
+    @Param('orderId') orderId: string,
+    @Body() dto: TechnicianPhotoConfirmDto,
+  ) {
+    return this.orders.technicianConfirmStoragePhoto(req.technician!.id, orderId, dto);
+  }
+
+  @Post('technician/jobs/:orderId/photos/upload')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 15 * 1024 * 1024 },
+    }),
+  )
+  uploadMultipartPhoto(
+    @Req() req: TechnicianRequest,
+    @Param('orderId') orderId: string,
+    @Body() dto: TechnicianPhotoMultipartMetaDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file?.buffer?.length) throw new BadRequestException('file required');
+    if (!ALLOWED_IMAGE_MIME.test(file.mimetype || '')) throw new BadRequestException('unsupported image type');
+    return this.orders.technicianUploadMultipartPhoto(req.technician!.id, orderId, dto.kind, file, dto.caption);
+  }
+}

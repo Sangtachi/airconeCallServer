@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { BookingStatus } from './admin.types';
 
 export class AssignTechnicianDto {
@@ -67,10 +67,20 @@ export class UpdateMemberDto {
   @IsString()
   name?: string;
 
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
   @ApiProperty({ required: false, enum: ['active', 'inactive', 'banned'] })
   @IsOptional()
   @IsIn(['active', 'inactive', 'banned'])
   status?: 'active' | 'inactive' | 'banned';
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  marketingConsent?: boolean;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -96,11 +106,43 @@ export class CreateBookingDto {
   symptomCode!: string;
 }
 
+export class UpdateBookingDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  customerName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  customerPhone?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  region?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  symptomCode?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  adminMemo?: string;
+}
+
 export class UpdateTechnicianDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -111,6 +153,18 @@ export class UpdateTechnicianDto {
   @IsOptional()
   @IsIn(['pending', 'approved', 'rejected', 'suspended'])
   status?: 'pending' | 'approved' | 'rejected' | 'suspended';
+}
+
+export class UpdateOnboardingDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
 }
 
 export class CancelPaymentDto {
