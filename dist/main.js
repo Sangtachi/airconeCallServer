@@ -13,7 +13,6 @@ async function bootstrap() {
         exclude: [
             { path: '', method: common_1.RequestMethod.GET },
             { path: 'health', method: common_1.RequestMethod.GET },
-            { path: 'admin/(.*)', method: common_1.RequestMethod.ALL },
         ],
     });
     app.useGlobalPipes(new common_1.ValidationPipe({
