@@ -10,13 +10,15 @@ function num(v, d = 0) {
         return Number(v) || d;
     return d;
 }
-function technicianFromRow(row, capabilities) {
+function technicianFromRow(row, capabilities, regions = [], availability = [], documents = []) {
     return {
         id: String(row.id),
         name: String(row.name),
         phone: String(row.phone),
+        passwordHash: row.password_hash == null ? null : String(row.password_hash),
         businessType: String(row.business_type || 'individual') || 'individual',
         businessNumber: row.business_number == null ? null : String(row.business_number),
+        careerYears: row.career_years == null ? null : num(row.career_years, 0),
         status: row.status,
         workStatus: row.work_status,
         baseRegion: row.base_region == null ? null : String(row.base_region),
@@ -29,6 +31,9 @@ function technicianFromRow(row, capabilities) {
         memo: row.memo == null ? null : String(row.memo),
         createdAt: String(row.created_at ?? new Date().toISOString()),
         capabilities,
+        regions,
+        availability,
+        documents,
     };
 }
 async function fetchCapabilitiesBulk(sb, technicianIds) {
@@ -56,8 +61,10 @@ function technicianInsertPayload(e) {
         id: e.id,
         name: e.name,
         phone: e.phone,
+        password_hash: e.passwordHash,
         business_type: e.businessType,
         business_number: e.businessNumber,
+        career_years: e.careerYears,
         status: e.status,
         work_status: e.workStatus,
         base_region: e.baseRegion,
@@ -68,6 +75,10 @@ function technicianInsertPayload(e) {
         profile_photo_url: e.profilePhotoUrl,
         reject_reason: e.rejectReason,
         memo: e.memo,
+        available_same_day: e.availability.includes('same_day'),
+        available_reservation: e.availability.includes('reservation'),
+        available_weekend: e.availability.includes('weekend'),
+        available_night: e.availability.includes('night'),
     };
 }
 //# sourceMappingURL=technicians-db.mapper.js.map

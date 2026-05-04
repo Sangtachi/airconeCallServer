@@ -3,15 +3,21 @@ import { Allow, IsIn, IsOptional, IsString } from 'class-validator';
 
 const STATUSES = [
   'created',
+  'payment_pending',
   'paid',
   'matching',
   'assigned',
   'accepted',
   'on_the_way',
+  'arrived',
+  'diagnosed',
+  'extra_payment_pending',
   'working',
   'completed',
   'cancelled',
   'refunded',
+  'settlement_pending',
+  'settled',
 ] as const;
 
 export type AdminPatchableOrderStatus = (typeof STATUSES)[number];
@@ -25,7 +31,7 @@ export class PatchInstallOrderAdminDto {
   @ApiProperty({
     required: false,
     nullable: true,
-    description: '기사 식별자(t_1 등). 빈 문자열이면 미배정으로 저장.',
+    description: '승인된 기사 UUID. 빈 문자열이면 미배정으로 저장.',
   })
   @Allow()
   @IsOptional()

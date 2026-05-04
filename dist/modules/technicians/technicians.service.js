@@ -17,58 +17,36 @@ exports.TechniciansService = void 0;
 exports.toAdminTechnicianBrief = toAdminTechnicianBrief;
 const common_1 = require("@nestjs/common");
 const node_crypto_1 = require("node:crypto");
+const password_hash_1 = require("../../common/password-hash");
 const database_tokens_1 = require("../../database/database.tokens");
 const technicians_db_mapper_1 = require("./technicians-db.mapper");
-function memorySeedApproved() {
-    const now = new Date().toISOString();
-    return {
-        id: 't_1',
-        name: '김기사',
-        phone: '01099998888',
-        businessType: 'individual',
-        businessNumber: null,
-        status: 'approved',
-        workStatus: 'available',
-        baseRegion: '경기 파주',
-        bankName: null,
-        bankAccount: null,
-        bankHolder: null,
-        platformFeeRate: 20,
-        profilePhotoUrl: null,
-        rejectReason: null,
-        memo: null,
-        createdAt: now,
-        capabilities: [
-            { serviceType: 'install', airconType: 'wall' },
-            { serviceType: 'install', airconType: 'stand' },
-            { serviceType: 'cleaning', airconType: 'wall' },
-        ],
-    };
-}
-function memorySeedPending() {
-    const now = new Date().toISOString();
-    return {
-        id: 'o_demo_pending',
-        name: '박신청',
-        phone: '01055557777',
-        businessType: 'individual',
-        businessNumber: null,
-        status: 'pending',
-        workStatus: 'offline',
-        baseRegion: '서울',
-        bankName: null,
-        bankAccount: null,
-        bankHolder: null,
-        platformFeeRate: 20,
-        profilePhotoUrl: null,
-        rejectReason: null,
-        memo: null,
-        createdAt: now,
-        capabilities: [{ serviceType: 'install', airconType: 'wall' }],
-    };
-}
 function normalizePhone(p) {
-    return p.replace(/\D/g, '');
+    return String(p ?? '').replace(/\D/g, '');
+}
+function cleanList(v, fallback) {
+    const rows = (v ?? [])
+        .map((x) => String(x).trim())
+        .filter(Boolean);
+    if (rows.length > 0)
+        return [...new Set(rows)];
+    const f = fallback?.trim();
+    return f ? [f] : [];
+}
+function availabilityFromSignup(dto) {
+    const out = [];
+    if (dto.availableSameDay)
+        out.push('same_day');
+    if (dto.availableReservation ?? true)
+        out.push('reservation');
+    if (dto.availableWeekend)
+        out.push('weekend');
+    if (dto.availableNight)
+        out.push('night');
+    return out.length > 0 ? out : ['reservation'];
+}
+function isMissingSupabaseRelation(error) {
+    const message = error instanceof Error ? error.message : String(error ?? '');
+    return /schema cache|could not find the table|relation .* does not exist/i.test(message);
 }
 function toAdminTechnicianBrief(e) {
     return {
@@ -79,103 +57,175 @@ function toAdminTechnicianBrief(e) {
         workStatus: e.workStatus,
         baseRegion: e.baseRegion ?? undefined,
         feeRate: e.platformFeeRate,
+        regions: e.regions,
+        capabilities: e.capabilities,
+        documents: e.documents.map((d) => ({ type: d.documentType, status: d.status })),
     };
 }
 let TechniciansService = TechniciansService_1 = class TechniciansService {
     constructor(sb) {
         this.sb = sb;
         this.logger = new common_1.Logger(TechniciansService_1.name);
-        this.useDb = false;
         this.byId = new Map();
-        this.seq = 1;
     }
-    assertUniquePhone(phoneNorm, excludeId) {
-        for (const t of this.byId.values()) {
-            if (excludeId !== undefined && t.id === excludeId)
-                continue;
-            if (normalizePhone(t.phone) === phoneNorm)
-                throw new common_1.BadRequestException('phone already registered');
+    db() {
+        if (!this.sb) {
+            throw new common_1.ServiceUnavailableException('서버 DB 연결 설정이 필요합니다. 로컬 .env.local에 Supabase 값을 넣고 서버를 재시작해 주세요.');
+        }
+        return this.sb;
+    }
+    ensureConfigured() {
+        if (!this.sb) {
+            throw new common_1.ServiceUnavailableException('서버 DB 연결 설정이 필요합니다. 로컬 .env.local에 Supabase 값을 넣고 서버를 재시작해 주세요.');
         }
     }
     async onModuleInit() {
         if (!this.sb) {
-            this.bootstrapMemoryOnly();
-            this.logger.log('Technicians: 메모리(시드 t_1 + 데모 pending)');
+            this.logger.warn('Technicians: Supabase 미설정 — 기사 API는 호출 시 503을 반환합니다.');
             return;
         }
-        try {
-            await this.hydrateFromDatabase();
-            this.useDb = true;
-            this.logger.log(`Technicians: Supabase 로드 ${this.byId.size}건`);
-        }
-        catch (e) {
-            this.logger.warn(`Technicians DB 실패 — 로컬 시드 폴백: ${e instanceof Error ? e.message : String(e)}`);
-            this.bootstrapMemoryOnly();
-        }
-    }
-    bootstrapMemoryOnly() {
-        this.byId.clear();
-        for (const e of [memorySeedApproved(), memorySeedPending()]) {
-            this.byId.set(e.id, e);
-        }
+        await this.hydrateFromDatabase();
+        this.logger.log(`Technicians: Supabase 로드 ${this.byId.size}건`);
     }
     async hydrateFromDatabase() {
-        const { data: rows, error } = await this.sb.from('technicians').select('*').order('created_at');
+        const sb = this.db();
+        const { data: rows, error } = await sb.from('technicians').select('*').order('created_at');
         if (error)
-            throw new Error(error.message);
+            throw new common_1.BadRequestException(error.message);
         const ids = (rows ?? []).map((r) => String(r.id));
-        const capMap = await (0, technicians_db_mapper_1.fetchCapabilitiesBulk)(this.sb, ids);
+        const [capMap, regionMap, availabilityMap, docMap] = await Promise.all([
+            this.fetchOptionalTechnicianChildTable('technician_capabilities', ids, () => this.emptyMap(ids), () => (0, technicians_db_mapper_1.fetchCapabilitiesBulk)(sb, ids)),
+            this.fetchOptionalTechnicianChildTable('technician_regions', ids, () => this.emptyMap(ids), () => this.fetchRegionsBulk(ids)),
+            this.fetchOptionalTechnicianChildTable('technician_availability', ids, () => this.emptyMap(ids), () => this.fetchAvailabilityBulk(ids)),
+            this.fetchOptionalTechnicianChildTable('technician_documents', ids, () => this.emptyMap(ids), () => this.fetchDocumentsBulk(ids)),
+        ]);
         this.byId.clear();
         for (const r of rows ?? []) {
             const rec = r;
             const id = String(rec.id);
-            const entity = (0, technicians_db_mapper_1.technicianFromRow)(rec, capMap.get(id) ?? []);
+            const entity = (0, technicians_db_mapper_1.technicianFromRow)(rec, capMap.get(id) ?? [], regionMap.get(id) ?? [], availabilityMap.get(id) ?? [], docMap.get(id) ?? []);
             this.byId.set(id, entity);
         }
     }
-    async reloadIfDb() {
-        if (!this.useDb || !this.sb)
-            return;
+    emptyMap(technicianIds) {
+        const map = new Map();
+        technicianIds.forEach((id) => map.set(id, []));
+        return map;
+    }
+    async fetchOptionalTechnicianChildTable(tableName, technicianIds, fallback, read) {
+        try {
+            return await read();
+        }
+        catch (error) {
+            if (!isMissingSupabaseRelation(error))
+                throw error;
+            this.logger.warn(`Technicians: ${tableName} 테이블 없음 — sql/auth_password_patch_and_samples.sql 적용 전까지 해당 관계는 빈 값으로 로드합니다.`);
+            return fallback();
+        }
+    }
+    async fetchRegionsBulk(technicianIds) {
+        const map = new Map();
+        technicianIds.forEach((id) => map.set(id, []));
+        if (technicianIds.length === 0)
+            return map;
+        const { data, error } = await this.db()
+            .from('technician_regions')
+            .select('technician_id, region')
+            .in('technician_id', technicianIds);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        for (const r of data ?? []) {
+            const id = String(r.technician_id);
+            const list = map.get(id) ?? [];
+            list.push(String(r.region));
+            map.set(id, list);
+        }
+        return map;
+    }
+    async fetchAvailabilityBulk(technicianIds) {
+        const map = new Map();
+        technicianIds.forEach((id) => map.set(id, []));
+        if (technicianIds.length === 0)
+            return map;
+        const { data, error } = await this.db()
+            .from('technician_availability')
+            .select('technician_id, availability_code')
+            .in('technician_id', technicianIds);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        for (const r of data ?? []) {
+            const id = String(r.technician_id);
+            const list = map.get(id) ?? [];
+            list.push(r.availability_code);
+            map.set(id, list);
+        }
+        return map;
+    }
+    async fetchDocumentsBulk(technicianIds) {
+        const map = new Map();
+        technicianIds.forEach((id) => map.set(id, []));
+        if (technicianIds.length === 0)
+            return map;
+        const { data, error } = await this.db()
+            .from('technician_documents')
+            .select('id, technician_id, document_type, file_url, status')
+            .in('technician_id', technicianIds);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        for (const r of data ?? []) {
+            const rec = r;
+            const id = String(rec.technician_id);
+            const list = map.get(id) ?? [];
+            list.push({
+                id: String(rec.id),
+                documentType: String(rec.document_type),
+                fileUrl: String(rec.file_url),
+                status: rec.status,
+            });
+            map.set(id, list);
+        }
+        return map;
+    }
+    async reload() {
         await this.hydrateFromDatabase();
     }
     approvedCount() {
+        this.ensureConfigured();
         return [...this.byId.values()].filter((t) => t.status === 'approved').length;
     }
     listAllBrief() {
+        this.ensureConfigured();
         return [...this.byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(toAdminTechnicianBrief);
     }
     getOnboardingRecords() {
+        this.ensureConfigured();
         return [...this.byId.values()]
             .filter((t) => t.status === 'pending' || t.status === 'reviewing')
             .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-            .map((t) => ({
-            id: t.id,
-            name: t.name,
-            phone: t.phone,
-            status: t.status === 'pending' ? 'pending' : t.status === 'reviewing' ? 'reviewing' : 'approved',
-            documents: ['id_card', 'business_license'],
-            rejectReason: t.rejectReason ?? undefined,
-            createdAt: t.createdAt,
-        }));
+            .map(getOnboardingFromEntity);
     }
     signup(dto) {
+        this.ensureConfigured();
         const phone = normalizePhone(dto.phone);
         if (phone.length < 9)
             throw new common_1.BadRequestException('invalid phone');
         const id = (0, node_crypto_1.randomUUID)();
         const now = new Date().toISOString();
+        const regions = cleanList(dto.regions, dto.baseRegion);
         const entity = {
             id,
             name: dto.name.trim(),
             phone,
-            businessType: 'individual',
-            businessNumber: null,
+            passwordHash: (0, password_hash_1.hashPassword)(dto.password),
+            businessType: dto.businessType ?? 'individual',
+            businessNumber: dto.businessNumber?.trim() || null,
+            careerYears: null,
             status: 'pending',
             workStatus: 'offline',
-            baseRegion: dto.baseRegion?.trim() ?? null,
-            bankName: null,
-            bankAccount: null,
-            bankHolder: null,
+            baseRegion: dto.baseRegion?.trim() || regions[0] || null,
+            bankName: dto.bankName?.trim() || null,
+            bankAccount: dto.bankAccount?.trim() || null,
+            bankHolder: dto.bankHolder?.trim() || null,
             platformFeeRate: 20,
             profilePhotoUrl: null,
             rejectReason: null,
@@ -185,51 +235,91 @@ let TechniciansService = TechniciansService_1 = class TechniciansService {
                 serviceType: c.serviceType,
                 airconType: c.airconType,
             })),
+            regions,
+            availability: availabilityFromSignup(dto),
+            documents: dto.documents?.map((d) => ({
+                id: (0, node_crypto_1.randomUUID)(),
+                documentType: d.documentType,
+                fileUrl: d.fileUrl.trim(),
+                status: 'pending',
+            })) ?? [],
         };
         return this.persistNewTechnician(entity);
     }
     async persistNewTechnician(entity) {
-        if (!this.useDb)
-            this.assertUniquePhone(normalizePhone(entity.phone));
-        if (this.useDb && this.sb) {
-            const { error: e1 } = await this.sb.from('technicians').insert((0, technicians_db_mapper_1.technicianInsertPayload)(entity));
-            if (e1)
-                throw new common_1.BadRequestException(e1.message);
-            const caps = entity.capabilities.map((c) => ({
+        const sb = this.db();
+        const { error: e1 } = await sb.from('technicians').insert((0, technicians_db_mapper_1.technicianInsertPayload)(entity));
+        if (e1)
+            throw new common_1.BadRequestException(e1.message);
+        if (entity.capabilities.length > 0) {
+            const { error } = await sb.from('technician_capabilities').insert(entity.capabilities.map((c) => ({
                 technician_id: entity.id,
                 service_type: c.serviceType,
                 aircon_type: c.airconType,
-            }));
-            const { error: e2 } = await this.sb.from('technician_capabilities').insert(caps);
-            if (e2)
-                throw new common_1.BadRequestException(e2.message);
-            await this.hydrateFromDatabase();
-            return { id: entity.id, status: entity.status };
+            })));
+            if (error)
+                throw new common_1.BadRequestException(error.message);
         }
-        this.byId.set(entity.id, entity);
+        if (entity.regions.length > 0) {
+            const { error } = await sb.from('technician_regions').insert(entity.regions.map((region) => ({
+                technician_id: entity.id,
+                region,
+            })));
+            if (error)
+                throw new common_1.BadRequestException(error.message);
+        }
+        if (entity.availability.length > 0) {
+            const { error } = await sb.from('technician_availability').insert(entity.availability.map((availabilityCode) => ({
+                technician_id: entity.id,
+                availability_code: availabilityCode,
+            })));
+            if (error)
+                throw new common_1.BadRequestException(error.message);
+        }
+        if (entity.documents.length > 0) {
+            const { error } = await sb.from('technician_documents').insert(entity.documents.map((doc) => ({
+                id: doc.id,
+                technician_id: entity.id,
+                document_type: doc.documentType,
+                file_url: doc.fileUrl,
+                status: doc.status,
+            })));
+            if (error)
+                throw new common_1.BadRequestException(error.message);
+        }
+        await this.reload();
         return { id: entity.id, status: entity.status };
     }
-    findApprovedByPhone(phone) {
+    findApprovedByCredentials(phone, password) {
+        this.ensureConfigured();
         const p = normalizePhone(phone);
-        return [...this.byId.values()].find((t) => normalizePhone(t.phone) === p && t.status === 'approved') ?? null;
+        const row = [...this.byId.values()].find((t) => normalizePhone(t.phone) === p && t.status === 'approved') ?? null;
+        if (!row || !(0, password_hash_1.verifyPassword)(password, row.passwordHash))
+            return null;
+        return row;
     }
     getApprovedById(id) {
+        this.ensureConfigured();
         const t = this.byId.get(id);
         if (!t || t.status !== 'approved')
             return null;
         return t;
     }
     findById(id) {
+        this.ensureConfigured();
         return this.byId.get(id);
     }
     createByAdmin(dto) {
+        this.ensureConfigured();
         const p = normalizePhone(dto.phone);
         const entity = {
-            id: this.useDb ? (0, node_crypto_1.randomUUID)() : `t_${++this.seq}`,
+            id: (0, node_crypto_1.randomUUID)(),
             name: dto.name,
             phone: p,
+            passwordHash: dto.password ? (0, password_hash_1.hashPassword)(dto.password) : null,
             businessType: 'individual',
             businessNumber: null,
+            careerYears: null,
             status: 'pending',
             workStatus: 'offline',
             baseRegion: dto.baseRegion ?? null,
@@ -242,10 +332,14 @@ let TechniciansService = TechniciansService_1 = class TechniciansService {
             memo: null,
             createdAt: new Date().toISOString(),
             capabilities: [{ serviceType: 'install', airconType: 'wall' }],
+            regions: cleanList(undefined, dto.baseRegion),
+            availability: ['reservation'],
+            documents: [],
         };
         return this.persistNewTechnician(entity).then(() => this.getRequired(entity.id)).then(toAdminTechnicianBrief);
     }
     getRequired(id) {
+        this.ensureConfigured();
         const t = this.byId.get(id);
         if (!t)
             throw new common_1.NotFoundException('technician not found');
@@ -253,99 +347,74 @@ let TechniciansService = TechniciansService_1 = class TechniciansService {
     }
     async updateByAdmin(id, dto) {
         const row = this.getRequired(id);
+        const patch = {};
         if (dto.name !== undefined)
-            row.name = dto.name;
-        if (dto.phone !== undefined) {
-            const p = normalizePhone(dto.phone);
-            this.assertUniquePhone(p, id);
-            row.phone = p;
+            patch.name = dto.name;
+        if (dto.phone !== undefined)
+            patch.phone = normalizePhone(dto.phone);
+        if (dto.password !== undefined && dto.password.trim() !== '') {
+            patch.password_hash = (0, password_hash_1.hashPassword)(dto.password);
+            patch.password_updated_at = new Date().toISOString();
         }
         if (dto.baseRegion !== undefined)
-            row.baseRegion = dto.baseRegion ?? null;
+            patch.base_region = dto.baseRegion ?? null;
         if (dto.status !== undefined)
-            row.status = dto.status;
-        row.rejectReason = null;
-        if (this.useDb && this.sb) {
-            const { error } = await this.sb
-                .from('technicians')
-                .update({
-                name: row.name,
-                phone: row.phone,
-                base_region: row.baseRegion,
-                status: row.status,
-                reject_reason: null,
-            })
-                .eq('id', row.id);
-            if (error)
-                throw new common_1.BadRequestException(error.message);
-            await this.reloadIfDb();
-        }
+            patch.status = dto.status;
+        patch.reject_reason = null;
+        const { error } = await this.db().from('technicians').update(patch).eq('id', row.id);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.reload();
         return toAdminTechnicianBrief(this.getRequired(id));
     }
     async deleteByAdmin(id) {
         const row = this.getRequired(id);
-        if (this.useDb && this.sb) {
-            const { error } = await this.sb.from('technicians').delete().eq('id', id);
-            if (error)
-                throw new common_1.BadRequestException(error.message);
-            await this.reloadIfDb();
-        }
-        else
-            this.byId.delete(id);
+        const { error } = await this.db().from('technicians').delete().eq('id', id);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.reload();
         return { id: row.id, deleted: true };
     }
     async updateOnboardingRecord(id, dto) {
         const row = this.getRequired(id);
         if (row.status !== 'pending' && row.status !== 'reviewing')
             throw new common_1.BadRequestException('not an onboarding applicant');
+        const patch = {};
         if (dto.name !== undefined)
-            row.name = dto.name;
+            patch.name = dto.name;
         if (dto.phone !== undefined)
-            row.phone = normalizePhone(dto.phone);
-        if (this.useDb && this.sb) {
-            const { error } = await this.sb
-                .from('technicians')
-                .update({ name: row.name, phone: row.phone })
-                .eq('id', id);
-            if (error)
-                throw new common_1.BadRequestException(error.message);
-            await this.reloadIfDb();
-        }
-        return this.getOnboardingRecords().find((o) => o.id === id) ?? getOnboardingFromEntity(this.getRequired(id));
+            patch.phone = normalizePhone(dto.phone);
+        const { error } = await this.db().from('technicians').update(patch).eq('id', id);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.reload();
+        return getOnboardingFromEntity(this.getRequired(id));
     }
     async deleteOnboardingRecord(id) {
         const row = this.getRequired(id);
         if (row.status !== 'pending' && row.status !== 'reviewing')
             throw new common_1.BadRequestException('cannot delete onboarding for this technician');
-        if (this.useDb && this.sb) {
-            const { error } = await this.sb.from('technicians').delete().eq('id', id);
-            if (error)
-                throw new common_1.BadRequestException(error.message);
-            await this.reloadIfDb();
-        }
-        else
-            this.byId.delete(id);
+        const { error } = await this.db().from('technicians').delete().eq('id', id);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.reload();
         return { id, deleted: true };
     }
     async reviewOnboarding(id, dto) {
         const row = this.getRequired(id);
         if (row.status !== 'pending' && row.status !== 'reviewing')
             throw new common_1.BadRequestException('technician not in onboarding workflow');
-        row.rejectReason = dto.rejectReason ?? null;
-        row.status =
-            dto.status === 'approved' ? 'approved' : dto.status === 'rejected' ? 'rejected' : 'reviewing';
-        if (this.useDb && this.sb) {
-            const { error } = await this.sb
-                .from('technicians')
-                .update({
-                status: row.status,
-                reject_reason: row.rejectReason,
-            })
-                .eq('id', id);
-            if (error)
-                throw new common_1.BadRequestException(error.message);
-            await this.reloadIfDb();
-        }
+        const status = dto.status === 'approved' ? 'approved' : dto.status === 'rejected' ? 'rejected' : 'reviewing';
+        const { error } = await this.db()
+            .from('technicians')
+            .update({
+            status,
+            reject_reason: dto.rejectReason ?? null,
+        })
+            .eq('id', id);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.reload();
         return getOnboardingFromEntity(this.getRequired(id));
     }
 };
@@ -368,7 +437,7 @@ function getOnboardingFromEntity(t) {
         name: t.name,
         phone: t.phone,
         status: st,
-        documents: ['id_card'],
+        documents: t.documents.map((d) => `${d.documentType}:${d.status}`),
         rejectReason: t.rejectReason ?? undefined,
         createdAt: t.createdAt,
     };

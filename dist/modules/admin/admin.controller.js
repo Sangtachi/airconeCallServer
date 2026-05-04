@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const admin_role_guard_1 = require("../../common/admin-role.guard");
 const technicians_service_1 = require("../technicians/technicians.service");
 const admin_access_guard_1 = require("./admin-access.guard");
 const admin_service_1 = require("./admin.service");
@@ -33,6 +34,14 @@ let AdminController = class AdminController {
     }
     deleteMember(id) {
         return this.service.deleteMember(id);
+    }
+    getSellers() { return this.service.getSellers(); }
+    createSeller(dto) { return this.service.createSeller(dto); }
+    updateSeller(id, dto) {
+        return this.service.updateSeller(id, dto);
+    }
+    deleteSeller(id) {
+        return this.service.deleteSeller(id);
     }
     getBookings() { return this.service.getBookings(); }
     createBooking(dto) { return this.service.createBooking(dto); }
@@ -113,18 +122,21 @@ let AdminController = class AdminController {
 exports.AdminController = AdminController;
 __decorate([
     (0, common_1.Get)('dashboard'),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'ops_admin', 'finance_admin'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "dashboard", null);
 __decorate([
     (0, common_1.Get)('members'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getMembers", null);
 __decorate([
     (0, common_1.Get)('members/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -132,6 +144,7 @@ __decorate([
 ], AdminController.prototype, "getMember", null);
 __decorate([
     (0, common_1.Post)('members'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [admin_dto_1.CreateMemberDto]),
@@ -139,6 +152,7 @@ __decorate([
 ], AdminController.prototype, "createMember", null);
 __decorate([
     (0, common_1.Patch)('members/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -147,19 +161,54 @@ __decorate([
 ], AdminController.prototype, "updateMember", null);
 __decorate([
     (0, common_1.Delete)('members/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "deleteMember", null);
 __decorate([
+    (0, common_1.Get)('sellers'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getSellers", null);
+__decorate([
+    (0, common_1.Post)('sellers'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [admin_dto_1.CreateSellerDto]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "createSeller", null);
+__decorate([
+    (0, common_1.Patch)('sellers/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, admin_dto_1.UpdateSellerDto]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "updateSeller", null);
+__decorate([
+    (0, common_1.Delete)('sellers/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "deleteSeller", null);
+__decorate([
     (0, common_1.Get)('bookings'),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'ops_admin'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getBookings", null);
 __decorate([
     (0, common_1.Post)('bookings'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [admin_dto_1.CreateBookingDto]),
@@ -167,6 +216,7 @@ __decorate([
 ], AdminController.prototype, "createBooking", null);
 __decorate([
     (0, common_1.Get)('bookings/:id'),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -174,6 +224,7 @@ __decorate([
 ], AdminController.prototype, "getBooking", null);
 __decorate([
     (0, common_1.Post)('bookings/:id/assign-technician'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -182,6 +233,7 @@ __decorate([
 ], AdminController.prototype, "assign", null);
 __decorate([
     (0, common_1.Post)('bookings/:id/unassign-technician'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -189,6 +241,7 @@ __decorate([
 ], AdminController.prototype, "unassign", null);
 __decorate([
     (0, common_1.Patch)('bookings/:id/status'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -197,6 +250,7 @@ __decorate([
 ], AdminController.prototype, "updateStatus", null);
 __decorate([
     (0, common_1.Patch)('bookings/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -205,6 +259,7 @@ __decorate([
 ], AdminController.prototype, "updateBooking", null);
 __decorate([
     (0, common_1.Delete)('bookings/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -212,18 +267,21 @@ __decorate([
 ], AdminController.prototype, "deleteBooking", null);
 __decorate([
     (0, common_1.Get)('technicians'),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'ops_admin'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getTechnicians", null);
 __decorate([
     (0, common_1.Get)('technician-onboarding'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getOnboarding", null);
 __decorate([
     (0, common_1.Post)('technician-onboarding/:id/review'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -232,6 +290,7 @@ __decorate([
 ], AdminController.prototype, "reviewOnboarding", null);
 __decorate([
     (0, common_1.Patch)('technician-onboarding/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -240,6 +299,7 @@ __decorate([
 ], AdminController.prototype, "updateOnboarding", null);
 __decorate([
     (0, common_1.Delete)('technician-onboarding/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -247,6 +307,7 @@ __decorate([
 ], AdminController.prototype, "deleteOnboarding", null);
 __decorate([
     (0, common_1.Post)('technicians'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [admin_dto_1.CreateTechnicianDto]),
@@ -254,6 +315,7 @@ __decorate([
 ], AdminController.prototype, "createTechnician", null);
 __decorate([
     (0, common_1.Patch)('technicians/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -262,6 +324,7 @@ __decorate([
 ], AdminController.prototype, "updateTechnician", null);
 __decorate([
     (0, common_1.Delete)('technicians/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -269,12 +332,14 @@ __decorate([
 ], AdminController.prototype, "deleteTechnician", null);
 __decorate([
     (0, common_1.Get)('payments'),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'finance_admin'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getPayments", null);
 __decorate([
     (0, common_1.Post)('payments/:id/cancel'),
+    (0, admin_role_guard_1.AdminRoles)('finance_admin'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, common_1.Headers)('idempotency-key')),
@@ -284,12 +349,14 @@ __decorate([
 ], AdminController.prototype, "cancelPayment", null);
 __decorate([
     (0, common_1.Get)('settlements'),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'finance_admin'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getSettlements", null);
 __decorate([
     (0, common_1.Post)('settlements/:id/confirm'),
+    (0, admin_role_guard_1.AdminRoles)('finance_admin'),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
@@ -300,6 +367,7 @@ __decorate([
 ], AdminController.prototype, "confirmSettlement", null);
 __decorate([
     (0, common_1.Patch)('settlements/:id/status'),
+    (0, admin_role_guard_1.AdminRoles)('finance_admin'),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
@@ -310,6 +378,7 @@ __decorate([
 ], AdminController.prototype, "updateSettlementStatus", null);
 __decorate([
     (0, common_1.Delete)('settlements/:id'),
+    (0, admin_role_guard_1.AdminRoles)('finance_admin'),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Headers)('idempotency-key')),
@@ -321,6 +390,7 @@ __decorate([
     (0, common_1.Get)('settlement-events'),
     (0, swagger_1.ApiOperation)({ summary: '정산 변경 감사(멱등키·액터 포함, Supabase DDL 필요)' }),
     (0, swagger_1.ApiQuery)({ name: 'orderId', required: false }),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'finance_admin'),
     __param(0, (0, common_1.Query)('orderId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -328,12 +398,14 @@ __decorate([
 ], AdminController.prototype, "settlementEvents", null);
 __decorate([
     (0, common_1.Get)('coupons'),
+    (0, admin_role_guard_1.AdminRoles)('finance_admin', 'ops_admin'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getCoupons", null);
 __decorate([
     (0, common_1.Post)('coupons'),
+    (0, admin_role_guard_1.AdminRoles)('finance_admin', 'ops_admin'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [admin_dto_1.CreateCouponDto]),
@@ -341,6 +413,7 @@ __decorate([
 ], AdminController.prototype, "createCoupon", null);
 __decorate([
     (0, common_1.Patch)('coupons/:id'),
+    (0, admin_role_guard_1.AdminRoles)('finance_admin', 'ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -349,6 +422,7 @@ __decorate([
 ], AdminController.prototype, "updateCoupon", null);
 __decorate([
     (0, common_1.Delete)('coupons/:id'),
+    (0, admin_role_guard_1.AdminRoles)('finance_admin', 'ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -356,19 +430,20 @@ __decorate([
 ], AdminController.prototype, "deleteCoupon", null);
 __decorate([
     (0, common_1.Get)('logs'),
+    (0, admin_role_guard_1.AdminRoles)('super_admin'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getLogs", null);
 exports.AdminController = AdminController = __decorate([
     (0, swagger_1.ApiTags)('admin'),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiSecurity)('admin-role'),
     (0, swagger_1.ApiHeader)({
         name: 'x-admin-role',
         required: false,
-        description: '레거시 허용 시(ADMIN_LEGACY_X_ADMIN_ROLE unset|1). Bearer JWT 권장.',
+        description: 'JWT 미사용. role-only: dispatch_admin | ops_admin | finance_admin | super_admin',
     }),
-    (0, common_1.UseGuards)(admin_access_guard_1.AdminAccessGuard),
+    (0, common_1.UseGuards)(admin_access_guard_1.AdminAccessGuard, admin_role_guard_1.AdminRoleGuard),
     (0, common_1.Controller)('admin'),
     __metadata("design:paramtypes", [admin_service_1.AdminService,
         technicians_service_1.TechniciansService])

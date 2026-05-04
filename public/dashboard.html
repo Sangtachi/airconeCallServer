@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Airconecall 대시보드</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="mask-icon" href="/favicon.svg" color="#2563eb" />
+    <style>
+      :root {
+        --ink: #101828;
+        --muted: #5b6675;
+        --line: #d8e0ea;
+        --blue: #2563eb;
+        --green: #059669;
+        --red: #b42318;
+        --soft: #f6f8fb;
+      }
+      * { box-sizing: border-box; font-family: Inter, system-ui, sans-serif; }
+      body { margin: 0; min-height: 100svh; color: var(--ink); background: var(--soft); }
+      .top {
+        min-height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 14px clamp(20px, 5vw, 56px);
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+      }
+      .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-weight: 800; }
+      .brand img { width: 32px; height: 32px; }
+      .nav { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+      .nav a, .nav button, .btn {
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--ink);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .nav button, button.btn { cursor: pointer; }
+      .btn.primary { color: #fff; border-color: var(--blue); background: var(--blue); }
+      .btn.danger { color: #fff; border-color: var(--red); background: var(--red); }
+      .wrap { width: min(1180px, calc(100vw - 32px)); margin: 0 auto; padding: clamp(24px, 4vw, 48px) 0; }
+      .head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: end; margin-bottom: 22px; }
+      h1 { margin: 0; font-size: clamp(30px, 4vw, 48px); line-height: 1.04; letter-spacing: 0; }
+      h2 { margin: 0 0 10px; font-size: 18px; letter-spacing: 0; }
+      .lead { max-width: 720px; margin: 10px 0 0; color: var(--muted); line-height: 1.6; }
+      .badge { display: inline-flex; align-items: center; min-height: 28px; padding: 5px 9px; border-radius: 999px; background: #ecfdf5; color: var(--green); font-size: 12px; font-weight: 800; }
+      .summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+      .metric, .panel {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+      }
+      .metric { padding: 14px; }
+      .metric span { display: block; color: var(--muted); font-size: 12px; font-weight: 800; }
+      .metric strong { display: block; margin-top: 8px; font-size: 22px; overflow-wrap: anywhere; }
+      .workspace { display: grid; grid-template-columns: minmax(280px, 0.45fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+      .panel { padding: 16px; }
+      .panel + .panel { margin-top: 12px; }
+      .stack { display: grid; gap: 12px; }
+      .muted { color: var(--muted); font-size: 13px; line-height: 1.55; }
+      .ok { color: var(--green); }
+      .err { color: var(--red); }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { padding: 9px 8px; border-bottom: 1px solid #e5ebf2; text-align: left; vertical-align: top; }
+      th { color: var(--muted); font-size: 12px; font-weight: 800; }
+      tr:last-child td { border-bottom: 0; }
+      input, select, textarea {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 9px 10px;
+        background: #fff;
+        color: var(--ink);
+        font-size: 14px;
+      }
+      textarea { min-height: 90px; resize: vertical; }
+      label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 800; }
+      form { display: grid; gap: 10px; }
+      .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+      .scope-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+      .scope-list li { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid #eef2f7; }
+      .scope-list li:last-child { border-bottom: 0; }
+      .scope-list span { color: var(--muted); font-size: 13px; }
+      .hidden { display: none !important; }
+      @media (max-width: 860px) {
+        .top, .head { align-items: flex-start; grid-template-columns: 1fr; flex-direction: column; }
+        .nav { justify-content: flex-start; }
+        .summary, .workspace, .row { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/index.html">
+        <img src="/branding/icon-mark.png" alt="" />
+        <span>Airconecall</span>
+      </a>
+      <nav class="nav" aria-label="상단 메뉴">
+        <a href="/index.html">홈화면</a>
+        <button class="hidden" id="topLogout" type="button" data-logout>로그아웃</button>
+      </nav>
+    </header>
+
+    <main class="wrap">
+      <header class="head">
+        <div>
+          <span class="badge" id="roleBadge">session</span>
+          <h1 id="title">대시보드</h1>
+          <p class="lead" id="lead"></p>
+        </div>
+        <div class="actions" id="topActions"></div>
+      </header>
+      <section class="summary" id="summary"></section>
+      <section class="workspace" id="workspace"></section>
+    </main>
+
+    <script src="/session.js"></script>
+    <script>
+      const session = window.AirconecallSession?.read();
+      const title = document.getElementById('title');
+      const lead = document.getElementById('lead');
+      const roleBadge = document.getElementById('roleBadge');
+      const topLogout = document.getElementById('topLogout');
+      const topActions = document.getElementById('topActions');
+      const summary = document.getElementById('summary');
+      const workspace = document.getElementById('workspace');
+
+      const roleLabels = {
+        customer: '고객',
+        technician: '기사',
+        seller: '판매자',
+        admin: '관리자',
+        super_admin: '슈퍼관리자',
+      };
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      async function api(path, options = {}) {
+        const res = await fetch(path, {
+          ...options,
+          headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!json.ok) {
+          const detail = json.error?.message || json.message || '요청을 처리하지 못했습니다.';
+          throw new Error(Array.isArray(detail) ? detail.join(', ') : detail);
+        }
+        return json.data;
+      }
+
+      function metric(label, value) {
+        return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value ?? '-')}</strong></div>`;
+      }
+
+      function table(rows, columns, emptyText = '데이터 없음') {
+        if (!rows?.length) return `<p class="muted">${escapeHtml(emptyText)}</p>`;
+        return `<table><thead><tr>${columns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${columns.map((c) => {
+          const value = c.render ? c.render(row) : row[c.key];
+          return `<td>${c.html ? value : escapeHtml(value)}</td>`;
+        }).join('')}</tr>`).join('')}</tbody></table>`;
+      }
+
+      function setShell(role, description) {
+        const label = roleLabels[role] || role;
+        roleBadge.textContent = label;
+        title.textContent = `${label} 대시보드`;
+        lead.textContent = description;
+        if (session) topLogout.classList.remove('hidden');
+      }
+
+      function renderLoggedOut() {
+        roleBadge.textContent = 'signed out';
+        title.textContent = '로그인이 필요합니다';
+        lead.textContent = '역할별 대시보드는 로그인한 계정 유형에 따라 다르게 표시됩니다.';
+        topActions.innerHTML = '<a class="btn primary" href="/auth.html#login">로그인</a>';
+        summary.innerHTML = '';
+        workspace.innerHTML = '';
+      }
+
+      async function renderAdmin() {
+        setShell(session.role, '관리자는 전체 운영 영역으로 이동해 생성, 조회, 수정, 삭제 작업을 수행합니다.');
+        topActions.innerHTML = '<a class="btn primary" href="/admin/index.html?role=super_admin&tab=accounts&section=customers">관리자 CRUD 열기</a>';
+        let metrics = null;
+        try {
+          metrics = await api('/api/admin/dashboard', { headers: { 'x-admin-role': 'super_admin' } });
+        } catch (err) {
+          metrics = { error: err.message };
+        }
+        summary.innerHTML = [
+          metric('오늘 접수', metrics.todayBookings ?? '-'),
+          metric('전체 회원', metrics.members ?? '-'),
+          metric('매칭중', metrics.matching ?? '-'),
+          metric('정산 대기', metrics.settlementPending ?? '-'),
+        ].join('');
+        const modules = [
+          ['전체 회원관리', '회원, 판매자, 기사, 관리자', '/admin/index.html?role=super_admin&tab=accounts&section=customers'],
+          ['기사등록/승인', '기사 신청 검토, 승인, 반려', '/admin/index.html?role=super_admin&tab=onboarding'],
+          ['주문/배차', '주문 상태, 배정, 완료 처리', '/admin/index.html?role=super_admin&tab=bookings'],
+          ['긴급접수', '문의/긴급 리드 상태 관리', '/admin/index.html?role=super_admin&tab=emergency_leads'],
+          ['리워드/쿠폰', '쿠폰 발급, 상태 변경, 삭제', '/admin/index.html?role=super_admin&tab=rewards'],
+          ['결제/정산', '정산 확정, 지급, 보류, 취소', '/admin/index.html?role=super_admin&tab=settlements'],
+          ['상품/가격', '설치/청소 상품과 추가금 항목', '/admin/index.html?role=super_admin&tab=service_products'],
+        ];
+        workspace.innerHTML = `
+          <aside class="panel">
+            <h2>관리 범위</h2>
+            <ul class="scope-list">
+              <li><strong>권한</strong><span>전체 운영 CRUD</span></li>
+              <li><strong>인증</strong><span>임시 role-only</span></li>
+              <li><strong>데이터</strong><span>Supabase 기준</span></li>
+            </ul>
+          </aside>
+          <section class="panel">
+            <h2>CRUD 진입점</h2>
+            ${table(modules.map(([name, scope, href]) => ({ name, scope, href })), [
+              { label: '영역', render: (r) => r.name },
+              { label: '작업 범위', render: (r) => r.scope },
+              { label: '동작', html: true, render: (r) => `<a href="${escapeHtml(r.href)}">열기</a>` },
+            ])}
+          </section>
+        `;
+      }
+
+      async function renderSeller() {
+        setShell('seller', '판매자는 판매자 신청 상태와 공급 품목 정보만 확인합니다.');
+        topActions.innerHTML = '';
+        const data = await api(`/api/sellers/${encodeURIComponent(session.id)}/dashboard`);
+        const seller = data.seller;
+        summary.innerHTML = [
+          metric('상태', seller.status),
+          metric('상호명', seller.companyName),
+          metric('취급 품목', seller.productCategory || '-'),
+          metric('담당자', seller.ownerName),
+        ].join('');
+        workspace.innerHTML = `
+          <aside class="panel">
+            <h2>판매자 권한 범위</h2>
+            <ul class="scope-list">
+              <li><strong>표시</strong><span>판매자 정보만</span></li>
+              <li><strong>숨김</strong><span>고객, 기사, 관리자 메뉴</span></li>
+              <li><strong>상태</strong><span>${escapeHtml(seller.status)}</span></li>
+            </ul>
+          </aside>
+          <section class="panel">
+            <h2>판매자 정보</h2>
+            ${table([seller], [
+              { label: '담당자', key: 'ownerName' },
+              { label: '전화번호', key: 'phone' },
+              { label: '상호명', key: 'companyName' },
+              { label: '사업자번호', key: 'businessNumber' },
+              { label: '메모', key: 'memo' },
+            ])}
+          </section>
+        `;
+      }
+
+      function technicianHeaders() {
+        return { 'x-technician-id': session.id };
+      }
+
+      function jobActions(job) {
+        const id = escapeHtml(job.id);
+        if (job.orderStatus === 'assigned') return `<button class="btn" data-job="${id}" data-action="accept">수락</button>`;
+        if (job.orderStatus === 'accepted') return `<button class="btn" data-job="${id}" data-action="depart">출발</button><button class="btn" data-job="${id}" data-action="start">작업시작</button>`;
+        if (job.orderStatus === 'on_the_way') return `<button class="btn" data-job="${id}" data-action="start">작업시작</button>`;
+        if (job.orderStatus === 'working') return `<button class="btn primary" data-job="${id}" data-action="complete">완료</button>`;
+        return '-';
+      }
+
+      async function runJobAction(orderId, action) {
+        await api(`/api/technician/jobs/${orderId}/${action}`, { method: 'PATCH', headers: technicianHeaders() });
+        await renderTechnician();
+      }
+
+      async function renderTechnician() {
+        setShell('technician', '기사는 본인에게 배정된 주문, 작업 상태, 자재, 정산만 확인합니다.');
+        topActions.innerHTML = '';
+        const [me, jobs, materials, settlements] = await Promise.all([
+          api('/api/technician/me', { headers: technicianHeaders() }),
+          api('/api/technician/jobs', { headers: technicianHeaders() }),
+          api('/api/technician/materials', { headers: technicianHeaders() }).catch(() => []),
+          api('/api/technician/settlements', { headers: technicianHeaders() }).catch(() => []),
+        ]);
+        const pendingPayout = settlements
+          .filter((s) => s.status === 'pending')
+          .reduce((acc, s) => acc + Number(s.technicianPayout || 0), 0);
+        summary.innerHTML = [
+          metric('작업 상태', me.workStatus),
+          metric('배정 주문', jobs.length),
+          metric('자재 항목', materials.length),
+          metric('정산 대기', pendingPayout.toLocaleString('ko-KR')),
+        ].join('');
+        workspace.innerHTML = `
+          <aside class="stack">
+            <section class="panel">
+              <h2>기사 정보</h2>
+              <ul class="scope-list">
+                <li><strong>이름</strong><span>${escapeHtml(me.name)}</span></li>
+                <li><strong>지역</strong><span>${escapeHtml(me.baseRegion || '-')}</span></li>
+                <li><strong>권한</strong><span>본인 작업만</span></li>
+              </ul>
+            </section>
+            <section class="panel">
+              <h2>자재</h2>
+              ${table(materials.slice(0, 8), [
+                { label: '자재', key: 'name' },
+                { label: '단위', key: 'unit' },
+                { label: '고객가', render: (r) => r.customerPrice == null ? '-' : Number(r.customerPrice).toLocaleString('ko-KR') },
+              ])}
+            </section>
+          </aside>
+          <section class="stack">
+            <div class="panel">
+              <h2>배차/주문</h2>
+              ${table(jobs, [
+                { label: '주문번호', key: 'orderNo' },
+                { label: '고객', key: 'customerName' },
+                { label: '상태', key: 'orderStatus' },
+                { label: '주소', key: 'addressSummary' },
+                { label: '액션', html: true, render: jobActions },
+              ], '배정된 주문이 없습니다.')}
+            </div>
+            <div class="panel">
+              <h2>정산</h2>
+              ${table(settlements.slice(0, 8), [
+                { label: '주문', key: 'orderNo' },
+                { label: '상태', key: 'status' },
+                { label: '지급액', render: (r) => r.technicianPayout == null ? '-' : Number(r.technicianPayout).toLocaleString('ko-KR') },
+                { label: '생성일', key: 'createdAt' },
+              ])}
+            </div>
+          </section>
+        `;
+        workspace.querySelectorAll('[data-job][data-action]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            try {
+              await runJobAction(button.dataset.job, button.dataset.action);
+            } catch (err) {
+              alert(err.message);
+            }
+          });
+        });
+      }
+
+      async function submitInquiry(event) {
+        event.preventDefault();
+        const fd = new FormData(event.currentTarget);
+        const clientSessionId = `${session.id}-${Date.now()}`;
+        const created = await api('/api/emergency-leads', {
+          method: 'POST',
+          body: JSON.stringify({
+            clientSessionId,
+            location: String(fd.get('location') || '').trim(),
+            acType: String(fd.get('acType') || '').trim(),
+            issue: String(fd.get('issue') || '').trim(),
+            urgency: String(fd.get('urgency') || 'scheduled'),
+            matchingTimeoutSeconds: 40,
+          }),
+        });
+        await api(`/api/emergency-leads/${created.leadId}/contact`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            clientSessionId,
+            customerPhone: session.phone,
+            customerName: session.name,
+            userId: session.id,
+          }),
+        });
+        event.currentTarget.reset();
+        await renderCustomer('문의가 저장됐습니다.');
+      }
+
+      async function renderCustomer(message = '') {
+        setShell('customer', '고객은 문의 접수, 회원 정보, 쿠폰 현황만 확인합니다.');
+        topActions.innerHTML = '';
+        const data = await api(`/api/members/${encodeURIComponent(session.id)}/dashboard`);
+        const member = data.member;
+        summary.innerHTML = [
+          metric('회원 상태', member.status),
+          metric('쿠폰', data.coupons.length),
+          metric('문의', data.inquiries.length),
+          metric('마케팅 수신', member.marketingConsent ? '동의' : '미동의'),
+        ].join('');
+        workspace.innerHTML = `
+          <aside class="stack">
+            <section class="panel">
+              <h2>문의 남기기</h2>
+              <form id="inquiryForm">
+                <label>주소/지역<input name="location" required placeholder="예: 서울 강남구 역삼동" /></label>
+                <div class="row">
+                  <label>에어컨 유형<input name="acType" placeholder="벽걸이, 스탠드, 시스템" /></label>
+                  <label>희망 처리<select name="urgency"><option value="scheduled">예약 문의</option><option value="now">긴급 문의</option></select></label>
+                </div>
+                <label>문의 내용<textarea name="issue" placeholder="증상이나 요청사항을 남겨주세요."></textarea></label>
+                <button class="btn primary" type="submit">문의 저장</button>
+                ${message ? `<p class="muted ok">${escapeHtml(message)}</p>` : ''}
+              </form>
+            </section>
+            <section class="panel">
+              <h2>회원관리</h2>
+              <ul class="scope-list">
+                <li><strong>이름</strong><span>${escapeHtml(member.name)}</span></li>
+                <li><strong>전화번호</strong><span>${escapeHtml(member.phone)}</span></li>
+                <li><strong>상태</strong><span>${escapeHtml(member.status)}</span></li>
+              </ul>
+            </section>
+          </aside>
+          <section class="stack">
+            <div class="panel">
+              <h2>쿠폰</h2>
+              ${table(data.coupons, [
+                { label: '유형', key: 'couponType' },
+                { label: '금액', render: (r) => Number(r.amount || 0).toLocaleString('ko-KR') },
+                { label: '상태', key: 'status' },
+                { label: '만료', key: 'expiresAt' },
+              ], '보유 쿠폰이 없습니다.')}
+            </div>
+            <div class="panel">
+              <h2>문의 내역</h2>
+              ${table(data.inquiries, [
+                { label: '지역', key: 'location' },
+                { label: '유형', key: 'airconType' },
+                { label: '상태', key: 'status' },
+                { label: '전환 주문', key: 'convertedOrderId' },
+              ], '문의 내역이 없습니다.')}
+            </div>
+          </section>
+        `;
+        document.getElementById('inquiryForm').addEventListener('submit', async (event) => {
+          try {
+            await submitInquiry(event);
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      }
+
+      async function boot() {
+        if (!session) {
+          renderLoggedOut();
+          return;
+        }
+        topLogout.classList.remove('hidden');
+        try {
+          if (session.role === 'admin' || session.role === 'super_admin') await renderAdmin();
+          else if (session.role === 'seller') await renderSeller();
+          else if (session.role === 'technician') await renderTechnician();
+          else await renderCustomer();
+        } catch (err) {
+          setShell(session.role || 'session', '대시보드 데이터를 불러오지 못했습니다.');
+          summary.innerHTML = '';
+          workspace.innerHTML = `<section class="panel"><p class="err">${escapeHtml(err.message)}</p></section>`;
+        }
+      }
+
+      window.AirconecallSession?.bindLogout();
+      boot();
+    </script>
+  </body>
+</html>

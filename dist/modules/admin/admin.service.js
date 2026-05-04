@@ -14,8 +14,11 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminService = void 0;
 const common_1 = require("@nestjs/common");
+const password_hash_1 = require("../../common/password-hash");
 const database_tokens_1 = require("../../database/database.tokens");
+const service_catalog_service_1 = require("../service-catalog/service-catalog.service");
 const technicians_service_1 = require("../technicians/technicians.service");
+const orders_service_1 = require("../orders/orders.service");
 const admin_payments_settlements_db_1 = require("./admin-payments-settlements.db");
 const settlement_audit_service_1 = require("./settlement-audit.service");
 const allowedTransitions = {
@@ -36,222 +39,669 @@ const allowedTransitions = {
     settlement_pending: ['settled'],
     settled: [],
 };
+function normalizePhone(v) {
+    return String(v ?? '').replace(/\D/g, '');
+}
+function requireUuid(id, label) {
+    if (!(0, admin_payments_settlements_db_1.looksLikeUuid)(id))
+        throw new common_1.BadRequestException(`${label} must be a UUID`);
+    return id;
+}
+function str(v) {
+    if (v == null)
+        return null;
+    const s = String(v).trim();
+    return s === '' ? null : s;
+}
+function memberFromRow(row) {
+    return {
+        id: String(row.id),
+        name: String(row.name ?? ''),
+        phone: String(row.phone ?? ''),
+        role: String(row.role ?? 'customer') || 'customer',
+        status: String(row.status ?? 'active') || 'active',
+        marketingConsent: Boolean(row.marketing_consent),
+        createdAt: String(row.created_at ?? new Date().toISOString()),
+        memo: str(row.memo) ?? undefined,
+    };
+}
+function couponFromRow(row) {
+    return {
+        id: String(row.id),
+        userId: String(row.user_id),
+        couponType: row.coupon_type,
+        amount: Number(row.amount ?? 0),
+        status: row.status,
+        expiresAt: str(row.expires_at) ?? undefined,
+        usedBookingId: str(row.used_booking_id),
+    };
+}
+function logFromRow(row) {
+    return {
+        id: String(row.id),
+        action: String(row.action),
+        targetTable: String(row.target_table),
+        targetId: String(row.target_id),
+        createdAt: String(row.created_at ?? new Date().toISOString()),
+        payload: row.payload,
+    };
+}
+function sellerFromRow(row) {
+    return {
+        id: String(row.id),
+        ownerName: String(row.owner_name ?? ''),
+        phone: String(row.phone ?? ''),
+        companyName: String(row.company_name ?? ''),
+        businessNumber: str(row.business_number),
+        productCategory: str(row.product_category),
+        status: String(row.status ?? 'pending'),
+        memo: str(row.memo),
+        createdAt: String(row.created_at ?? new Date().toISOString()),
+        updatedAt: String(row.updated_at ?? new Date().toISOString()),
+    };
+}
+function paymentStatusFromOrder(row) {
+    if (row.paymentStatus === 'paid')
+        return 'paid';
+    if (row.paymentStatus === 'failed')
+        return 'failed';
+    if (row.paymentStatus === 'refunded')
+        return 'cancelled';
+    if (row.paymentStatus === 'partial_refunded')
+        return 'partial_cancelled';
+    return 'ready';
+}
+function bookingFromOrder(row) {
+    const sourceEmergencyLeadId = row.customerMemo?.match(/\[긴급 접수 리드 ([0-9a-f-]{36})\]/i)?.[1] ?? null;
+    return {
+        id: row.id,
+        bookingNo: row.orderNo,
+        customerName: row.customerName,
+        customerPhone: row.customerPhone,
+        region: row.addressSummary,
+        symptomCode: row.customerMemo ?? row.productCode,
+        urgency: row.scheduleType === 'same_day' ? 'now' : 'scheduled',
+        status: row.orderStatus,
+        assignedTechnicianId: row.assignedTechnicianId,
+        paymentStatus: paymentStatusFromOrder(row),
+        adminMemo: row.adminMemo ?? undefined,
+        sourceEmergencyLeadId,
+    };
+}
 let AdminService = class AdminService {
-    constructor(techniciansRegistry, sb, settlementAudit) {
+    constructor(techniciansRegistry, orders, catalog, sb, settlementAudit) {
         this.techniciansRegistry = techniciansRegistry;
+        this.orders = orders;
+        this.catalog = catalog;
         this.sb = sb;
         this.settlementAudit = settlementAudit;
-        this.seq = 1;
-        this.bookingSeq = 1;
-        this.logs = [];
-        this.idempotency = new Map();
-        this.members = [
-            {
-                id: 'm_1',
-                name: '홍길동',
-                phone: '01012345678',
-                role: 'customer',
-                status: 'active',
-                marketingConsent: true,
-                createdAt: new Date().toISOString(),
-            },
-        ];
-        this.bookings = [
-            {
-                id: 'b_1',
-                bookingNo: this.nextBookingNo(),
-                customerName: '홍길동',
-                customerPhone: '01012345678',
-                region: '경기 파주시',
-                symptomCode: 'no_cold_air',
-                urgency: 'now',
-                status: 'matching',
-                assignedTechnicianId: null,
-                paymentStatus: 'paid',
-            },
-        ];
-        this.payments = [
-            { id: 'p_1', bookingId: 'b_1', amount: 40000, paymentType: 'deposit', provider: 'manual', status: 'paid' },
-        ];
-        this.settlements = [
-            {
-                id: 's_1',
-                bookingId: 'b_1',
-                technicianId: 't_1',
-                grossAmount: 150000,
-                partsAmount: 40000,
-                commissionBase: 110000,
-                platformFee: 22000,
-                technicianAmount: 128000,
-                adjustmentAmount: 0,
-                status: 'pending',
-            },
-        ];
-        this.coupons = [];
+    }
+    db() {
+        if (!this.sb) {
+            throw new common_1.ServiceUnavailableException('서버 DB 연결 설정이 필요합니다. 로컬 .env.local에 Supabase 값을 넣고 서버를 재시작해 주세요.');
+        }
+        return this.sb;
     }
     async getDashboard() {
-        let paidAmount = this.payments.filter((p) => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0);
-        let settlementPending = this.settlements.filter((s) => s.status === 'pending').length;
-        if (this.sb) {
-            const { data: paidRows } = await this.sb.from('payments').select('amount').eq('status', 'paid');
-            if (paidRows?.length) {
-                paidAmount = paidRows.reduce((acc, r) => acc + Number(r.amount ?? 0), 0);
-            }
-            const { count } = await this.sb
-                .from('order_settlements')
-                .select('id', { count: 'exact', head: true })
-                .eq('status', 'pending');
-            if (count != null)
-                settlementPending = count;
+        const sb = this.db();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayIso = today.toISOString();
+        const [ordersToday, members, matching, completed, paidRows, settlementPending,] = await Promise.all([
+            sb.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', todayIso),
+            sb.from('members').select('id', { count: 'exact', head: true }),
+            sb.from('orders').select('id', { count: 'exact', head: true }).eq('order_status', 'matching'),
+            sb.from('orders').select('id', { count: 'exact', head: true }).eq('order_status', 'completed'),
+            sb.from('payments').select('amount').eq('status', 'paid'),
+            sb.from('order_settlements').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        ]);
+        for (const r of [ordersToday, members, matching, completed, paidRows, settlementPending]) {
+            if (r.error)
+                throw new common_1.BadRequestException(r.error.message);
         }
+        const paidAmount = (paidRows.data ?? []).reduce((acc, r) => acc + Number(r.amount ?? 0), 0);
         return {
-            todayBookings: this.bookings.length,
-            members: this.members.length,
+            todayBookings: ordersToday.count ?? 0,
+            members: members.count ?? 0,
             technicians: this.techniciansRegistry.approvedCount(),
-            matching: this.bookings.filter((b) => b.status === 'matching').length,
-            completed: this.bookings.filter((b) => b.status === 'completed').length,
+            matching: matching.count ?? 0,
+            completed: completed.count ?? 0,
             paidAmount,
-            settlementPending,
-            supabaseOrdersApprox: this.sb
-                ? (await this.sb.from('orders').select('id', { count: 'exact', head: true })).count ?? null
-                : null,
+            settlementPending: settlementPending.count ?? 0,
+            canonicalModel: 'orders',
         };
     }
-    getMembers() { return this.members; }
-    getMember(id) {
-        const row = this.members.find((m) => m.id === id);
-        if (!row)
-            throw new common_1.NotFoundException('member not found');
-        return row;
+    async getMembers() {
+        const { data, error } = await this.db().from('members').select('*').order('created_at', { ascending: false });
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        return (data ?? []).map(memberFromRow);
     }
-    createMember(dto) {
-        const row = {
-            id: `m_${++this.seq}`,
-            name: dto.name,
-            phone: dto.phone,
+    async getMember(id) {
+        const { data, error } = await this.db().from('members').select('*').eq('id', requireUuid(id, 'member id')).maybeSingle();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        if (!data)
+            throw new common_1.NotFoundException('member not found');
+        return memberFromRow(data);
+    }
+    async createMember(dto) {
+        const phone = normalizePhone(dto.phone);
+        if (phone.length < 10)
+            throw new common_1.BadRequestException('invalid phone');
+        const passwordHash = dto.password ? (0, password_hash_1.hashPassword)(dto.password) : null;
+        const { data, error } = await this.db()
+            .from('members')
+            .insert({
+            name: dto.name.trim(),
+            phone,
+            role: dto.role ?? 'customer',
+            status: 'active',
+            marketing_consent: false,
+            password_hash: passwordHash,
+            password_updated_at: passwordHash ? new Date().toISOString() : null,
+        })
+            .select('*')
+            .single();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.audit('create_member', 'members', String(data.id), dto);
+        return memberFromRow(data);
+    }
+    async registerMember(dto) {
+        const phone = normalizePhone(dto.phone);
+        if (phone.length < 10)
+            throw new common_1.BadRequestException('invalid phone');
+        const sb = this.db();
+        const now = new Date();
+        const passwordHash = (0, password_hash_1.hashPassword)(dto.password);
+        const { data: existingMember, error: existingMemberError } = await sb
+            .from('members')
+            .select('id,role,password_hash')
+            .eq('phone', phone)
+            .maybeSingle();
+        if (existingMemberError)
+            throw new common_1.BadRequestException(existingMemberError.message);
+        if (existingMember) {
+            const existing = existingMember;
+            if (existing.role && existing.role !== 'customer') {
+                throw new common_1.ConflictException('관리자 계정은 공개 회원가입으로 변경할 수 없습니다.');
+            }
+            if (existing.password_hash) {
+                throw new common_1.ConflictException('이미 가입된 전화번호입니다. 로그인해 주세요.');
+            }
+        }
+        const { data, error } = await sb
+            .from('members')
+            .upsert({
+            name: dto.name?.trim() || 'Airconecall 고객',
+            phone,
             role: 'customer',
             status: 'active',
-            marketingConsent: false,
-            createdAt: new Date().toISOString(),
-        };
-        this.members.unshift(row);
-        this.audit('create_member', 'members', row.id, dto);
-        return row;
+            marketing_consent: dto.marketingConsent ?? false,
+            password_hash: passwordHash,
+            password_updated_at: now.toISOString(),
+        }, { onConflict: 'phone' })
+            .select('*')
+            .single();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        const member = memberFromRow(data);
+        const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        let signupCoupon = null;
+        let signupCouponCreated = false;
+        const { data: existingCoupon, error: existingCouponError } = await sb
+            .from('coupons')
+            .select('*')
+            .eq('user_id', member.id)
+            .eq('coupon_type', 'signup')
+            .maybeSingle();
+        if (existingCouponError)
+            throw new common_1.BadRequestException(existingCouponError.message);
+        if (existingCoupon) {
+            signupCoupon = couponFromRow(existingCoupon);
+        }
+        else {
+            const { data: insertedCoupon, error: insertCouponError } = await sb
+                .from('coupons')
+                .insert({
+                user_id: member.id,
+                coupon_type: 'signup',
+                amount: 5000,
+                status: 'active',
+                min_order_amount: 50000,
+                expires_at: expiresAt,
+            })
+                .select('*')
+                .single();
+            if (insertCouponError) {
+                const { data: racedCoupon, error: racedCouponError } = await sb
+                    .from('coupons')
+                    .select('*')
+                    .eq('user_id', member.id)
+                    .eq('coupon_type', 'signup')
+                    .maybeSingle();
+                if (racedCouponError || !racedCoupon)
+                    throw new common_1.BadRequestException(insertCouponError.message);
+                signupCoupon = couponFromRow(racedCoupon);
+            }
+            else {
+                signupCoupon = couponFromRow(insertedCoupon);
+                signupCouponCreated = true;
+            }
+        }
+        if (signupCouponCreated && signupCoupon) {
+            await sb.from('reward_logs').insert({
+                user_id: member.id,
+                action_type: 'member_signup',
+                reward_type: 'signup_coupon',
+                amount: signupCoupon.amount,
+                status: 'created',
+                reference_id: signupCoupon.id,
+                payload: { bookingRef: dto.bookingRef ?? null },
+            });
+        }
+        await this.audit('register_member', 'members', member.id, { bookingRef: dto.bookingRef ?? null });
+        return { member, signupCoupon };
     }
-    updateMember(id, dto) {
-        const row = this.getMember(id);
-        Object.assign(row, dto);
-        this.audit('update_member', 'members', id, dto);
-        return row;
-    }
-    deleteMember(id) {
-        const i = this.members.findIndex((m) => m.id === id);
-        if (i === -1)
+    async memberSession(dto) {
+        const phone = normalizePhone(dto.phone);
+        if (phone.length < 10)
+            throw new common_1.BadRequestException('invalid phone');
+        const { data, error } = await this.db()
+            .from('members')
+            .select('*,password_hash')
+            .eq('phone', phone)
+            .maybeSingle();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        if (!data)
             throw new common_1.NotFoundException('member not found');
-        this.members.splice(i, 1);
-        this.audit('delete_member', 'members', id);
+        if (!(0, password_hash_1.verifyPassword)(dto.password, data.password_hash)) {
+            throw new common_1.UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+        }
+        const member = memberFromRow(data);
+        if (member.status !== 'active')
+            throw new common_1.BadRequestException(`member status is ${member.status}`);
+        return {
+            memberId: member.id,
+            name: member.name,
+            phone: member.phone,
+            role: member.role,
+            status: member.status,
+        };
+    }
+    async unifiedSession(dto) {
+        const phone = normalizePhone(dto.phone);
+        if (phone.length < 10)
+            throw new common_1.BadRequestException('invalid phone');
+        const sb = this.db();
+        const { data: memberRow, error: memberError } = await sb
+            .from('members')
+            .select('*,password_hash')
+            .eq('phone', phone)
+            .maybeSingle();
+        if (memberError)
+            throw new common_1.BadRequestException(memberError.message);
+        if (memberRow) {
+            if (!(0, password_hash_1.verifyPassword)(dto.password, memberRow.password_hash)) {
+                throw new common_1.UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+            }
+            const member = memberFromRow(memberRow);
+            if (member.status !== 'active')
+                throw new common_1.BadRequestException(`member status is ${member.status}`);
+            return {
+                id: member.id,
+                memberId: member.id,
+                role: member.role,
+                name: member.name,
+                phone: member.phone,
+                status: member.status,
+            };
+        }
+        const { data: sellerRow, error: sellerError } = await sb
+            .from('seller_applications')
+            .select('*,password_hash')
+            .eq('phone', phone)
+            .maybeSingle();
+        if (sellerError)
+            throw new common_1.BadRequestException(sellerError.message);
+        if (sellerRow) {
+            if (!(0, password_hash_1.verifyPassword)(dto.password, sellerRow.password_hash)) {
+                throw new common_1.UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+            }
+            return {
+                id: String(sellerRow.id),
+                sellerId: String(sellerRow.id),
+                role: 'seller',
+                name: String(sellerRow.owner_name ?? ''),
+                companyName: String(sellerRow.company_name ?? ''),
+                phone: String(sellerRow.phone ?? phone),
+                status: String(sellerRow.status ?? 'pending'),
+            };
+        }
+        const technician = this.techniciansRegistry.findApprovedByCredentials(phone, dto.password);
+        if (technician) {
+            return {
+                id: technician.id,
+                technicianId: technician.id,
+                role: 'technician',
+                name: technician.name,
+                phone: technician.phone,
+                status: technician.status,
+                workStatus: technician.workStatus,
+                baseRegion: technician.baseRegion,
+            };
+        }
+        throw new common_1.UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+    }
+    async memberDashboard(id) {
+        const member = await this.getMember(id);
+        if (member.role !== 'customer') {
+            throw new common_1.UnauthorizedException('고객 대시보드 계정이 아닙니다.');
+        }
+        const sb = this.db();
+        const [couponsRes, inquiriesRes] = await Promise.all([
+            sb
+                .from('coupons')
+                .select('*')
+                .eq('user_id', member.id)
+                .order('created_at', { ascending: false }),
+            sb
+                .from('emergency_service_leads')
+                .select('id,location_text,aircon_type,issue_text,urgency,matching_status,converted_order_id,created_at,updated_at')
+                .or(`user_id.eq.${member.id},customer_phone.eq.${member.phone}`)
+                .order('created_at', { ascending: false })
+                .limit(20),
+        ]);
+        if (couponsRes.error)
+            throw new common_1.BadRequestException(couponsRes.error.message);
+        if (inquiriesRes.error)
+            throw new common_1.BadRequestException(inquiriesRes.error.message);
+        return {
+            member,
+            coupons: (couponsRes.data ?? []).map(couponFromRow),
+            inquiries: (inquiriesRes.data ?? []).map((r) => ({
+                id: String(r.id),
+                location: str(r.location_text),
+                airconType: str(r.aircon_type),
+                issue: str(r.issue_text),
+                urgency: String(r.urgency ?? 'now'),
+                status: String(r.matching_status ?? 'pending'),
+                convertedOrderId: str(r.converted_order_id),
+                createdAt: String(r.created_at ?? new Date().toISOString()),
+                updatedAt: String(r.updated_at ?? new Date().toISOString()),
+            })),
+        };
+    }
+    async registerSeller(dto) {
+        const phone = normalizePhone(dto.phone);
+        if (phone.length < 10)
+            throw new common_1.BadRequestException('invalid phone');
+        const passwordHash = (0, password_hash_1.hashPassword)(dto.password);
+        const { data: existingSeller, error: existingSellerError } = await this.db()
+            .from('seller_applications')
+            .select('id,password_hash')
+            .eq('phone', phone)
+            .maybeSingle();
+        if (existingSellerError)
+            throw new common_1.BadRequestException(existingSellerError.message);
+        if (existingSeller && existingSeller.password_hash) {
+            throw new common_1.ConflictException('이미 신청된 판매자 전화번호입니다. 로그인해 주세요.');
+        }
+        const { data, error } = await this.db()
+            .from('seller_applications')
+            .upsert({
+            owner_name: dto.ownerName.trim(),
+            phone,
+            company_name: dto.companyName.trim(),
+            business_number: dto.businessNumber?.trim() || null,
+            product_category: dto.productCategory?.trim() || null,
+            password_hash: passwordHash,
+            password_updated_at: new Date().toISOString(),
+            status: 'pending',
+        }, { onConflict: 'phone' })
+            .select('*')
+            .single();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        const id = String(data.id);
+        await this.audit('register_seller', 'seller_applications', id, {
+            companyName: dto.companyName,
+            productCategory: dto.productCategory ?? null,
+        });
+        return {
+            sellerId: id,
+            status: String(data.status ?? 'pending'),
+            companyName: String(data.company_name ?? ''),
+        };
+    }
+    async sellerSession(dto) {
+        const phone = normalizePhone(dto.phone);
+        if (phone.length < 10)
+            throw new common_1.BadRequestException('invalid phone');
+        const { data, error } = await this.db()
+            .from('seller_applications')
+            .select('*,password_hash')
+            .eq('phone', phone)
+            .maybeSingle();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        if (!data)
+            throw new common_1.NotFoundException('seller not found');
+        if (!(0, password_hash_1.verifyPassword)(dto.password, data.password_hash)) {
+            throw new common_1.UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+        }
+        return {
+            sellerId: String(data.id),
+            companyName: String(data.company_name ?? ''),
+            status: String(data.status ?? 'pending'),
+        };
+    }
+    async sellerDashboard(id) {
+        const { data, error } = await this.db()
+            .from('seller_applications')
+            .select('*')
+            .eq('id', requireUuid(id, 'seller id'))
+            .maybeSingle();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        if (!data)
+            throw new common_1.NotFoundException('seller not found');
+        const seller = sellerFromRow(data);
+        return {
+            seller,
+            scope: ['판매자 신청 상태', '회사/담당자 정보', '취급 품목'],
+        };
+    }
+    async updateMember(id, dto) {
+        const patch = {};
+        if (dto.name !== undefined)
+            patch.name = dto.name;
+        if (dto.phone !== undefined)
+            patch.phone = normalizePhone(dto.phone);
+        if (dto.status !== undefined)
+            patch.status = dto.status;
+        if (dto.role !== undefined)
+            patch.role = dto.role;
+        if (dto.password !== undefined && dto.password.trim() !== '') {
+            patch.password_hash = (0, password_hash_1.hashPassword)(dto.password);
+            patch.password_updated_at = new Date().toISOString();
+        }
+        if (dto.marketingConsent !== undefined)
+            patch.marketing_consent = dto.marketingConsent;
+        if (dto.memo !== undefined)
+            patch.memo = dto.memo;
+        const { data, error } = await this.db()
+            .from('members')
+            .update(patch)
+            .eq('id', requireUuid(id, 'member id'))
+            .select('*')
+            .single();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.audit('update_member', 'members', id, dto);
+        return memberFromRow(data);
+    }
+    async deleteMember(id) {
+        const { error } = await this.db().from('members').delete().eq('id', requireUuid(id, 'member id'));
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.audit('delete_member', 'members', id);
         return { id, deleted: true };
     }
-    getBookings() { return this.bookings; }
-    getBooking(id) {
-        const row = this.bookings.find((b) => b.id === id);
-        if (!row)
-            throw new common_1.NotFoundException('booking not found');
-        return row;
+    async getSellers() {
+        const { data, error } = await this.db()
+            .from('seller_applications')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        return (data ?? []).map(sellerFromRow);
     }
-    assignTechnician(id, dto) {
-        const booking = this.getBooking(id);
+    async createSeller(dto) {
+        const phone = normalizePhone(dto.phone);
+        if (phone.length < 10)
+            throw new common_1.BadRequestException('invalid phone');
+        const { data, error } = await this.db()
+            .from('seller_applications')
+            .insert({
+            owner_name: dto.ownerName.trim(),
+            phone,
+            password_hash: (0, password_hash_1.hashPassword)(dto.password),
+            password_updated_at: new Date().toISOString(),
+            company_name: dto.companyName.trim(),
+            business_number: dto.businessNumber?.trim() || null,
+            product_category: dto.productCategory?.trim() || null,
+            status: dto.status ?? 'approved',
+            memo: dto.memo?.trim() || null,
+        })
+            .select('*')
+            .single();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        const seller = sellerFromRow(data);
+        await this.audit('create_seller', 'seller_applications', seller.id, { phone });
+        return seller;
+    }
+    async updateSeller(id, dto) {
+        const patch = {};
+        if (dto.ownerName !== undefined)
+            patch.owner_name = dto.ownerName.trim();
+        if (dto.phone !== undefined)
+            patch.phone = normalizePhone(dto.phone);
+        if (dto.password !== undefined && dto.password.trim() !== '') {
+            patch.password_hash = (0, password_hash_1.hashPassword)(dto.password);
+            patch.password_updated_at = new Date().toISOString();
+        }
+        if (dto.companyName !== undefined)
+            patch.company_name = dto.companyName.trim();
+        if (dto.businessNumber !== undefined)
+            patch.business_number = dto.businessNumber.trim() || null;
+        if (dto.productCategory !== undefined)
+            patch.product_category = dto.productCategory.trim() || null;
+        if (dto.status !== undefined)
+            patch.status = dto.status;
+        if (dto.memo !== undefined)
+            patch.memo = dto.memo.trim() || null;
+        const { data, error } = await this.db()
+            .from('seller_applications')
+            .update(patch)
+            .eq('id', requireUuid(id, 'seller id'))
+            .select('*')
+            .single();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        const seller = sellerFromRow(data);
+        await this.audit('update_seller', 'seller_applications', id, dto);
+        return seller;
+    }
+    async deleteSeller(id) {
+        const { error } = await this.db()
+            .from('seller_applications')
+            .delete()
+            .eq('id', requireUuid(id, 'seller id'));
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.audit('delete_seller', 'seller_applications', id);
+        return { id, deleted: true };
+    }
+    async getBookings() {
+        const rows = await this.orders.listOrders();
+        return rows.map(bookingFromOrder);
+    }
+    async getBooking(id) {
+        return bookingFromOrder(await this.orders.getOrder(id));
+    }
+    async assignTechnician(id, dto) {
         const tech = this.techniciansRegistry.findById(dto.technicianId);
-        if (!tech || tech.status !== 'approved') {
+        if (!tech || tech.status !== 'approved')
             throw new common_1.NotFoundException('technician not found or not approved');
+        const row = await this.orders.patchAdmin(id, {
+            assignedTechnicianId: dto.technicianId,
+            orderStatus: 'assigned',
+        });
+        await this.audit('assign_technician', 'orders', id, dto);
+        return bookingFromOrder(row);
+    }
+    async unassignTechnician(id) {
+        const row = await this.orders.patchAdmin(id, {
+            assignedTechnicianId: null,
+            orderStatus: 'matching',
+        });
+        await this.audit('unassign_technician', 'orders', id);
+        return bookingFromOrder(row);
+    }
+    async updateBookingStatus(id, dto) {
+        const current = bookingFromOrder(await this.orders.getOrder(id));
+        if (!allowedTransitions[current.status]?.includes(dto.toStatus)) {
+            throw new common_1.BadRequestException(`invalid transition ${current.status} -> ${dto.toStatus}`);
         }
-        booking.assignedTechnicianId = dto.technicianId;
-        booking.status = 'assigned';
-        this.audit('assign_technician', 'bookings', id, dto);
-        return booking;
+        const row = await this.orders.patchAdmin(id, { orderStatus: dto.toStatus });
+        await this.audit('update_order_status', 'orders', id, dto);
+        return bookingFromOrder(row);
     }
-    unassignTechnician(id) {
-        const booking = this.getBooking(id);
-        booking.assignedTechnicianId = null;
-        booking.status = 'matching';
-        this.audit('unassign_technician', 'bookings', id);
-        return booking;
-    }
-    updateBookingStatus(id, dto) {
-        const booking = this.getBooking(id);
-        if (!allowedTransitions[booking.status].includes(dto.toStatus)) {
-            throw new common_1.BadRequestException(`invalid transition ${booking.status} -> ${dto.toStatus}`);
-        }
-        booking.status = dto.toStatus;
-        this.audit('update_booking_status', 'bookings', id, dto);
-        return booking;
-    }
-    createBooking(dto) {
-        const row = {
-            id: `b_${++this.seq}`,
-            bookingNo: this.nextBookingNo(),
+    async createBooking(dto) {
+        const productId = this.catalog.resolveDefaultEmergencyProductId();
+        const row = await this.orders.createDraft({
+            productId,
+            scheduleType: 'reservation',
             customerName: dto.customerName,
-            customerPhone: dto.customerPhone,
-            region: dto.region,
-            symptomCode: dto.symptomCode,
-            urgency: 'scheduled',
-            status: 'created',
-            assignedTechnicianId: null,
-            paymentStatus: 'ready',
-        };
-        this.bookings.unshift(row);
-        this.audit('create_booking', 'bookings', row.id, dto);
-        return row;
+            customerPhone: normalizePhone(dto.customerPhone),
+            addressSummary: dto.region,
+            customerMemo: dto.symptomCode,
+        });
+        await this.audit('create_order_from_admin_booking_api', 'orders', row.id, dto);
+        return bookingFromOrder(row);
     }
-    createBookingFromEmergencyLead(lead) {
-        const placeholderPhone = '01000001234';
-        const digits = (lead.customerPhone ?? '').replace(/\D/g, '');
-        const customerPhone = digits.length >= 10 ? digits : placeholderPhone;
-        const customerName = (lead.customerName?.trim() ?? '') !== '' ? String(lead.customerName).trim() : '긴급 접수 고객';
-        const rawLoc = lead.locationText.trim();
-        const regionLine = rawLoc.split(/\r?\n/)[0]?.trim() ?? rawLoc;
-        const region = regionLine.length >= 1 ? regionLine.slice(0, 80) : '지역 미입력';
-        const memoLines = [`[긴급 리드 ${lead.id}]`, `에어컨:${lead.airconType || '-'}`, `증상:${lead.issueText || '-'}`];
-        if (customerPhone === placeholderPhone)
-            memoLines.push('고객 전화 미확인(placeholder)');
-        const row = {
-            id: `b_${++this.seq}`,
-            bookingNo: this.nextBookingNo(),
-            customerName,
-            customerPhone,
-            region,
-            symptomCode: 'EMERGENCY',
-            urgency: lead.urgency === 'scheduled' ? 'scheduled' : 'now',
-            status: 'matching',
-            assignedTechnicianId: null,
-            paymentStatus: 'paid',
-            adminMemo: memoLines.join('\n'),
-            sourceEmergencyLeadId: lead.id,
-        };
-        this.bookings.unshift(row);
-        this.audit('create_booking', 'bookings', row.id, { source: 'emergency_lead', leadId: lead.id });
-        return row;
+    async updateBooking(id, dto) {
+        const patch = {};
+        if (dto.customerName !== undefined)
+            patch.customer_name = dto.customerName;
+        if (dto.customerPhone !== undefined)
+            patch.customer_phone = normalizePhone(dto.customerPhone);
+        if (dto.region !== undefined)
+            patch.address_summary = dto.region;
+        if (dto.symptomCode !== undefined)
+            patch.customer_memo = dto.symptomCode;
+        if (dto.adminMemo !== undefined)
+            patch.admin_memo = dto.adminMemo;
+        const { error } = await this.db().from('orders').update(patch).eq('id', requireUuid(id, 'order id'));
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.audit('update_order_from_booking_api', 'orders', id, dto);
+        return this.getBooking(id);
     }
-    updateBooking(id, dto) {
-        const row = this.getBooking(id);
-        Object.assign(row, dto);
-        this.audit('update_booking', 'bookings', id, dto);
-        return row;
-    }
-    deleteBooking(id) {
-        const i = this.bookings.findIndex((b) => b.id === id);
-        if (i === -1)
-            throw new common_1.NotFoundException('booking not found');
-        this.bookings.splice(i, 1);
-        this.audit('delete_booking', 'bookings', id);
-        return { id, deleted: true };
+    async deleteBooking(id) {
+        await this.orders.patchAdmin(id, { orderStatus: 'cancelled' });
+        await this.audit('cancel_order_from_booking_api', 'orders', id);
+        return { id, deleted: true, softDeleted: true };
     }
     async orderNoById(orderIds) {
         const map = new Map();
-        if (!this.sb || orderIds.length === 0)
+        if (orderIds.length === 0)
             return map;
-        const uniq = [...new Set(orderIds)].filter(Boolean);
-        const { data, error } = await this.sb.from('orders').select('id, order_no').in('id', uniq);
+        const { data, error } = await this.db().from('orders').select('id, order_no').in('id', [...new Set(orderIds)]);
         if (error)
             throw new common_1.BadRequestException(error.message);
         for (const o of data ?? []) {
@@ -261,9 +711,7 @@ let AdminService = class AdminService {
         return map;
     }
     async getPayments() {
-        if (!this.sb)
-            return this.payments;
-        const { data, error } = await this.sb.from('payments').select('*').order('created_at', { ascending: false });
+        const { data, error } = await this.db().from('payments').select('*').order('created_at', { ascending: false });
         if (error)
             throw new common_1.BadRequestException(error.message);
         const rows = (data ?? []);
@@ -272,45 +720,31 @@ let AdminService = class AdminService {
         return rows.map((r) => (0, admin_payments_settlements_db_1.paymentFromRow)(r, on.get(String(r.order_id)) ?? ''));
     }
     async cancelPayment(id, dto, idempotencyKey) {
-        if (idempotencyKey && this.idempotency.has(`cancel:${idempotencyKey}`)) {
-            return this.idempotency.get(`cancel:${idempotencyKey}`);
-        }
-        if (this.sb && (0, admin_payments_settlements_db_1.looksLikeUuid)(id)) {
-            const { data: before, error: e0 } = await this.sb.from('payments').select('*').eq('id', id).maybeSingle();
-            if (e0)
-                throw new common_1.BadRequestException(e0.message);
-            if (!before)
-                throw new common_1.NotFoundException('payment not found');
-            const { error } = await this.sb
-                .from('payments')
-                .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
-                .eq('id', id);
-            if (error)
-                throw new common_1.BadRequestException(error.message);
-            const orderMap = await this.orderNoById([String(before.order_id)]);
-            const payload = {
-                ...(0, admin_payments_settlements_db_1.paymentFromRow)(before, orderMap.get(String(before.order_id)) ?? ''),
-                reason: dto.reason ?? null,
-            };
-            this.audit('cancel_payment', 'payments', id, payload);
-            if (idempotencyKey)
-                this.idempotency.set(`cancel:${idempotencyKey}`, payload);
-            return payload;
-        }
-        const row = this.payments.find((p) => p.id === id);
-        if (!row)
+        const cached = await this.getIdempotentResponse('payment_cancel', idempotencyKey);
+        if (cached)
+            return cached;
+        const { data: before, error: e0 } = await this.db().from('payments').select('*').eq('id', requireUuid(id, 'payment id')).maybeSingle();
+        if (e0)
+            throw new common_1.BadRequestException(e0.message);
+        if (!before)
             throw new common_1.NotFoundException('payment not found');
-        row.status = 'cancelled';
-        const payload = { ...row, reason: dto.reason ?? null };
-        this.audit('cancel_payment', 'payments', id, payload);
-        if (idempotencyKey)
-            this.idempotency.set(`cancel:${idempotencyKey}`, payload);
+        const { error } = await this.db()
+            .from('payments')
+            .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+            .eq('id', id);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        const orderMap = await this.orderNoById([String(before.order_id)]);
+        const payload = {
+            ...(0, admin_payments_settlements_db_1.paymentFromRow)(before, orderMap.get(String(before.order_id)) ?? ''),
+            reason: dto.reason ?? null,
+        };
+        await this.audit('cancel_payment', 'payments', id, payload);
+        await this.saveIdempotentResponse('payment_cancel', idempotencyKey, payload);
         return payload;
     }
     async getSettlements() {
-        if (!this.sb)
-            return this.settlements;
-        const { data, error } = await this.sb
+        const { data, error } = await this.db()
             .from('order_settlements')
             .select('*')
             .order('created_at', { ascending: false });
@@ -322,126 +756,99 @@ let AdminService = class AdminService {
         return rows.map((r) => (0, admin_payments_settlements_db_1.settlementFromOrderRow)(r, on.get(String(r.order_id)) ?? ''));
     }
     async confirmSettlement(id, dto, idempotencyKey, ctx) {
-        if (idempotencyKey && this.idempotency.has(`settle:${idempotencyKey}`)) {
-            return this.idempotency.get(`settle:${idempotencyKey}`);
-        }
-        if (this.sb && (0, admin_payments_settlements_db_1.looksLikeUuid)(id)) {
-            const { data: row, error: e0 } = await this.sb.from('order_settlements').select('*').eq('id', id).maybeSingle();
-            if (e0)
-                throw new common_1.BadRequestException(e0.message);
-            if (!row)
-                throw new common_1.NotFoundException('settlement not found');
-            const r = row;
-            const adjustment = dto.adjustmentAmount ?? 0;
-            const payout = Math.max(0, Number(r.technician_payout ?? 0) + adjustment);
-            const prevMemo = r.memo == null ? '' : String(r.memo);
-            const memo = [prevMemo, adjustment ? `adjustment:${adjustment}` : ''].filter(Boolean).join('\n') || null;
-            const { error: e1 } = await this.sb
-                .from('order_settlements')
-                .update({
-                technician_payout: payout,
-                memo,
-                status: 'confirmed',
-            })
-                .eq('id', id);
-            if (e1)
-                throw new common_1.BadRequestException(e1.message);
-            const { data: after } = await this.sb.from('order_settlements').select('*').eq('id', id).single();
-            const orderMap = await this.orderNoById([String(after.order_id)]);
-            const mapped = (0, admin_payments_settlements_db_1.settlementFromOrderRow)(after, orderMap.get(String(after.order_id)) ?? '');
-            mapped.adjustmentAmount = adjustment;
-            await this.settlementAudit.record({
-                settlementId: id,
-                orderId: String(after.order_id),
-                actor: ctx?.actor ?? 'admin',
-                action: 'confirm',
-                idempotencyKey: ctx?.idempotencyKey?.trim()
-                    ? `settlement:confirm:${ctx.idempotencyKey.trim()}`
-                    : null,
-                payload: { adjustment, settlementId: id },
-            });
-            this.audit('confirm_settlement', 'settlements', id, mapped);
-            if (idempotencyKey)
-                this.idempotency.set(`settle:${idempotencyKey}`, mapped);
-            return mapped;
-        }
-        const row = this.settlements.find((s) => s.id === id);
+        const cached = await this.getIdempotentResponse('settlement_confirm', idempotencyKey);
+        if (cached)
+            return cached;
+        const { data: row, error: e0 } = await this.db()
+            .from('order_settlements')
+            .select('*')
+            .eq('id', requireUuid(id, 'settlement id'))
+            .maybeSingle();
+        if (e0)
+            throw new common_1.BadRequestException(e0.message);
         if (!row)
             throw new common_1.NotFoundException('settlement not found');
+        const r = row;
         const adjustment = dto.adjustmentAmount ?? 0;
-        row.adjustmentAmount = adjustment;
-        row.commissionBase = Math.max(0, row.grossAmount - row.partsAmount);
-        row.platformFee = Math.round((row.commissionBase * 20) / 100);
-        row.technicianAmount = Math.max(0, row.grossAmount - row.platformFee + row.adjustmentAmount);
-        row.status = 'confirmed';
-        this.audit('confirm_settlement', 'settlements', id, row);
-        if (idempotencyKey)
-            this.idempotency.set(`settle:${idempotencyKey}`, row);
-        return row;
+        const payout = Math.max(0, Number(r.technician_payout ?? 0) + adjustment);
+        const prevMemo = r.memo == null ? '' : String(r.memo);
+        const memo = [prevMemo, adjustment ? `adjustment:${adjustment}` : ''].filter(Boolean).join('\n') || null;
+        const { error: e1 } = await this.db()
+            .from('order_settlements')
+            .update({ technician_payout: payout, memo, status: 'confirmed' })
+            .eq('id', id);
+        if (e1)
+            throw new common_1.BadRequestException(e1.message);
+        const { data: after } = await this.db().from('order_settlements').select('*').eq('id', id).single();
+        const orderMap = await this.orderNoById([String(after.order_id)]);
+        const mapped = (0, admin_payments_settlements_db_1.settlementFromOrderRow)(after, orderMap.get(String(after.order_id)) ?? '');
+        mapped.adjustmentAmount = adjustment;
+        await this.settlementAudit.record({
+            settlementId: id,
+            orderId: String(after.order_id),
+            actor: ctx?.actor ?? 'admin',
+            action: 'confirm',
+            idempotencyKey: ctx?.idempotencyKey?.trim()
+                ? `settlement:confirm:${ctx.idempotencyKey.trim()}`
+                : null,
+            payload: { adjustment, settlementId: id },
+        });
+        await this.audit('confirm_settlement', 'settlements', id, mapped);
+        await this.saveIdempotentResponse('settlement_confirm', idempotencyKey, mapped);
+        return mapped;
     }
     async updateSettlementStatus(id, dto, ctx) {
-        if (this.sb && (0, admin_payments_settlements_db_1.looksLikeUuid)(id)) {
-            const patch = { status: dto.status };
-            if (dto.status === 'paid')
-                patch.paid_at = new Date().toISOString();
-            const { error } = await this.sb.from('order_settlements').update(patch).eq('id', id);
-            if (error)
-                throw new common_1.BadRequestException(error.message);
-            const { data: after } = await this.sb.from('order_settlements').select('*').eq('id', id).maybeSingle();
-            if (!after)
-                throw new common_1.NotFoundException('settlement not found');
-            const orderMap = await this.orderNoById([String(after.order_id)]);
-            const mapped = (0, admin_payments_settlements_db_1.settlementFromOrderRow)(after, orderMap.get(String(after.order_id)) ?? '');
-            await this.settlementAudit.record({
-                settlementId: id,
-                orderId: String(after.order_id),
-                actor: ctx?.actor ?? 'admin',
-                action: `status:${dto.status}`,
-                idempotencyKey: ctx?.idempotencyKey?.trim()
-                    ? `settlement:status:${id}:${ctx.idempotencyKey.trim()}`
-                    : null,
-                payload: dto,
-            });
-            this.audit('update_settlement_status', 'settlements', id, dto);
-            return mapped;
-        }
-        const row = this.settlements.find((s) => s.id === id);
-        if (!row)
+        const patch = { status: dto.status };
+        if (dto.status === 'paid')
+            patch.paid_at = new Date().toISOString();
+        const { error } = await this.db()
+            .from('order_settlements')
+            .update(patch)
+            .eq('id', requireUuid(id, 'settlement id'));
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        const { data: after } = await this.db().from('order_settlements').select('*').eq('id', id).maybeSingle();
+        if (!after)
             throw new common_1.NotFoundException('settlement not found');
-        row.status = dto.status;
-        this.audit('update_settlement_status', 'settlements', id, dto);
-        return row;
+        const orderMap = await this.orderNoById([String(after.order_id)]);
+        const mapped = (0, admin_payments_settlements_db_1.settlementFromOrderRow)(after, orderMap.get(String(after.order_id)) ?? '');
+        await this.settlementAudit.record({
+            settlementId: id,
+            orderId: String(after.order_id),
+            actor: ctx?.actor ?? 'admin',
+            action: `status:${dto.status}`,
+            idempotencyKey: ctx?.idempotencyKey?.trim()
+                ? `settlement:status:${id}:${ctx.idempotencyKey.trim()}`
+                : null,
+            payload: dto,
+        });
+        await this.audit('update_settlement_status', 'settlements', id, dto);
+        return mapped;
     }
     async deleteSettlement(id, ctx) {
-        if (this.sb && (0, admin_payments_settlements_db_1.looksLikeUuid)(id)) {
-            const { data: before } = await this.sb.from('order_settlements').select('order_id').eq('id', id).maybeSingle();
-            const { error } = await this.sb.from('order_settlements').update({ status: 'cancelled' }).eq('id', id);
-            if (error)
-                throw new common_1.BadRequestException(error.message);
-            await this.settlementAudit.record({
-                settlementId: id,
-                orderId: before ? String(before.order_id) : null,
-                actor: ctx?.actor ?? 'admin',
-                action: 'soft_cancel',
-                idempotencyKey: ctx?.idempotencyKey?.trim()
-                    ? `settlement:delete:${id}:${ctx.idempotencyKey.trim()}`
-                    : null,
-                payload: {},
-            });
-            this.audit('delete_settlement', 'settlements', id, { soft: true });
-            return { id, deleted: true };
-        }
-        const i = this.settlements.findIndex((s) => s.id === id);
-        if (i === -1)
-            throw new common_1.NotFoundException('settlement not found');
-        this.settlements.splice(i, 1);
-        this.audit('delete_settlement', 'settlements', id);
+        const { data: before } = await this.db()
+            .from('order_settlements')
+            .select('order_id')
+            .eq('id', requireUuid(id, 'settlement id'))
+            .maybeSingle();
+        const { error } = await this.db().from('order_settlements').update({ status: 'cancelled' }).eq('id', id);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.settlementAudit.record({
+            settlementId: id,
+            orderId: before ? String(before.order_id) : null,
+            actor: ctx?.actor ?? 'admin',
+            action: 'soft_cancel',
+            idempotencyKey: ctx?.idempotencyKey?.trim()
+                ? `settlement:delete:${id}:${ctx.idempotencyKey.trim()}`
+                : null,
+            payload: {},
+        });
+        await this.audit('delete_settlement', 'settlements', id, { soft: true });
         return { id, deleted: true };
     }
     async listSettlementEvents(orderId) {
-        if (!this.sb)
-            return [];
-        let q = this.sb
+        let q = this.db()
             .from('settlement_events')
             .select('*')
             .order('created_at', { ascending: false })
@@ -453,61 +860,104 @@ let AdminService = class AdminService {
             throw new common_1.BadRequestException(error.message);
         return data ?? [];
     }
-    getCoupons() { return this.coupons; }
-    createCoupon(dto) {
-        const row = {
-            id: `c_${++this.seq}`,
-            userId: dto.userId,
-            couponType: dto.couponType,
+    async getCoupons() {
+        const { data, error } = await this.db().from('coupons').select('*').order('created_at', { ascending: false });
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        return (data ?? []).map(couponFromRow);
+    }
+    async createCoupon(dto) {
+        const { data, error } = await this.db()
+            .from('coupons')
+            .insert({
+            user_id: requireUuid(dto.userId, 'userId'),
+            coupon_type: dto.couponType,
             amount: dto.amount,
             status: 'active',
-            expiresAt: dto.expiresAt,
-            usedBookingId: null,
-        };
-        this.coupons.unshift(row);
-        this.audit('create_coupon', 'coupons', row.id, dto);
-        return row;
+            min_order_amount: 50000,
+            expires_at: dto.expiresAt ?? null,
+            used_booking_id: null,
+        })
+            .select('*')
+            .single();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.audit('create_coupon', 'coupons', String(data.id), dto);
+        return couponFromRow(data);
     }
-    updateCoupon(id, dto) {
-        const row = this.coupons.find((c) => c.id === id);
-        if (!row)
-            throw new common_1.NotFoundException('coupon not found');
-        Object.assign(row, dto);
-        this.audit('update_coupon', 'coupons', id, dto);
-        return row;
+    async updateCoupon(id, dto) {
+        const patch = {};
+        if (dto.status !== undefined)
+            patch.status = dto.status;
+        if (dto.expiresAt !== undefined)
+            patch.expires_at = dto.expiresAt;
+        const { data, error } = await this.db()
+            .from('coupons')
+            .update(patch)
+            .eq('id', requireUuid(id, 'coupon id'))
+            .select('*')
+            .single();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.audit('update_coupon', 'coupons', id, dto);
+        return couponFromRow(data);
     }
-    deleteCoupon(id) {
-        const i = this.coupons.findIndex((c) => c.id === id);
-        if (i === -1)
-            throw new common_1.NotFoundException('coupon not found');
-        this.coupons.splice(i, 1);
-        this.audit('delete_coupon', 'coupons', id);
-        return { id, deleted: true };
+    async deleteCoupon(id) {
+        const { error } = await this.db()
+            .from('coupons')
+            .update({ status: 'cancelled' })
+            .eq('id', requireUuid(id, 'coupon id'));
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        await this.audit('delete_coupon', 'coupons', id, { soft: true });
+        return { id, deleted: true, softDeleted: true };
     }
-    getAdminLogs() { return this.logs; }
-    audit(action, targetTable, targetId, payload) {
-        this.logs.unshift({
-            id: `log_${++this.seq}`,
+    async getAdminLogs() {
+        const { data, error } = await this.db().from('admin_logs').select('*').order('created_at', { ascending: false }).limit(500);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        return (data ?? []).map(logFromRow);
+    }
+    async getIdempotentResponse(scope, key) {
+        if (!key?.trim())
+            return null;
+        const { data, error } = await this.db()
+            .from('idempotency_keys')
+            .select('response')
+            .eq('scope', scope)
+            .eq('key', key.trim())
+            .maybeSingle();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        return data ? data.response : null;
+    }
+    async saveIdempotentResponse(scope, key, response) {
+        if (!key?.trim())
+            return;
+        const { error } = await this.db()
+            .from('idempotency_keys')
+            .upsert({ scope, key: key.trim(), response }, { onConflict: 'scope,key' });
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+    }
+    async audit(action, targetTable, targetId, payload) {
+        const { error } = await this.db().from('admin_logs').insert({
             action,
-            targetTable,
-            targetId,
-            createdAt: new Date().toISOString(),
-            payload,
+            target_table: targetTable,
+            target_id: targetId,
+            payload: payload ?? null,
+            actor: 'x-admin-role-temporary',
         });
-    }
-    nextBookingNo() {
-        const d = new Date();
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const seq = String(this.bookingSeq++).padStart(4, '0');
-        return `AC${y}${m}${day}-${seq}`;
+        if (error)
+            throw new common_1.BadRequestException(error.message);
     }
 };
 exports.AdminService = AdminService;
 exports.AdminService = AdminService = __decorate([
     (0, common_1.Injectable)(),
-    __param(1, (0, common_1.Inject)(database_tokens_1.SUPABASE_ADMIN)),
-    __metadata("design:paramtypes", [technicians_service_1.TechniciansService, Object, settlement_audit_service_1.SettlementAuditService])
+    __param(3, (0, common_1.Inject)(database_tokens_1.SUPABASE_ADMIN)),
+    __metadata("design:paramtypes", [technicians_service_1.TechniciansService,
+        orders_service_1.OrdersService,
+        service_catalog_service_1.ServiceCatalogService, Object, settlement_audit_service_1.SettlementAuditService])
 ], AdminService);
 //# sourceMappingURL=admin.service.js.map

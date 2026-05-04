@@ -1,6 +1,6 @@
 /**
- * 명세서(orders / payments / Bookings)와 기존 in-memory MVP 도메인 정렬.
- * 다음 스프린트에서 orders 테이블·API로 마이그레이션할 때 이 매핑을 기준으로 리네이밍한다.
+ * 레거시 Booking 필드와 canonical orders/payments 모델의 호환 매핑.
+ * 신규 운영 상태는 orders.order_status / orders.payment_status를 기준으로 둔다.
  */
 
 /** 명세 주문 상태 (일부 단계 통합 가능) */

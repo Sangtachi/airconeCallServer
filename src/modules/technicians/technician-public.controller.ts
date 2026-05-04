@@ -15,16 +15,16 @@ export class TechnicianPublicController {
 
   @Post('technician/session')
   session(@Body() dto: TechnicianSessionDto) {
-    const row = this.technicians.findApprovedByPhone(dto.phone);
+    const row = this.technicians.findApprovedByCredentials(dto.phone, dto.password);
     if (!row) {
-      throw new UnauthorizedException(
-        '승인된 기사만 로그인됩니다 — 가입 후 관리자 승인 또는 데모 전화번호(01099998888) 승인 기사 필요',
-      );
+      throw new UnauthorizedException('승인된 기사 계정이 아니거나 전화번호/비밀번호가 맞지 않습니다.');
     }
     return {
       technicianId: row.id,
       name: row.name,
       baseRegion: row.baseRegion,
+      status: row.status,
+      workStatus: row.workStatus,
     };
   }
 }

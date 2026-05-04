@@ -9,15 +9,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminAuthModule = void 0;
 const common_1 = require("@nestjs/common");
 const admin_access_guard_1 = require("./admin-access.guard");
-const admin_auth_service_1 = require("./admin-auth.service");
 let AdminAuthModule = class AdminAuthModule {
 };
 exports.AdminAuthModule = AdminAuthModule;
 exports.AdminAuthModule = AdminAuthModule = __decorate([
     (0, common_1.Global)(),
     (0, common_1.Module)({
-        providers: [admin_auth_service_1.AdminAuthService, admin_access_guard_1.AdminAccessGuard],
-        exports: [admin_auth_service_1.AdminAuthService, admin_access_guard_1.AdminAccessGuard],
+        providers: [admin_access_guard_1.AdminAccessGuard],
+        exports: [admin_access_guard_1.AdminAccessGuard],
     })
 ], AdminAuthModule);
 //# sourceMappingURL=admin-auth.module.js.map

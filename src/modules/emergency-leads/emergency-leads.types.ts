@@ -22,7 +22,7 @@ export type EmergencyLeadRow = {
   customerName: string | null;
   userId: string | null;
   convertedOrderId: string | null;
-  /** Admin 인메모리 booking id (예: b_2) */
+  /** Deprecated compatibility field. 신규 전환에서는 convertedOrderId와 같은 order id를 기록한다. */
   convertedBookingId: string | null;
   createdAt: string;
   updatedAt: string;

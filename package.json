@@ -7,7 +7,9 @@
     "dev": "NODE_ENV=development ts-node-dev --respawn --transpile-only src/main.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
+    "supabase:check": "node scripts/check-supabase.mjs",
     "smoke-local": "bash scripts/smoke-local.sh",
+    "smoke-public": "node scripts/smoke-public.mjs",
     "test:e2e-base": "node scripts/e2e-admin.mjs"
   },
   "dependencies": {

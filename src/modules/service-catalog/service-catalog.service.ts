@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
   OnModuleInit,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { SUPABASE_ADMIN } from '../../database/database.tokens';
@@ -46,7 +47,9 @@ export class ServiceCatalogService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     if (!this.sb) {
-      this.logger.log('Service catalog: 메모리 fixture (SUPABASE 없음)');
+      this.logger.warn(
+        'Service catalog: Supabase 미설정 — 공개 카탈로그는 fixture로 표시하고, 운영 쓰기 API는 503을 반환합니다.',
+      );
       return;
     }
     try {
@@ -70,10 +73,10 @@ export class ServiceCatalogService implements OnModuleInit {
         `Service catalog: Supabase 로드 ${categories.length} 카테고리 / ${products.length} 상품 / ${addons.length} 추가항목`,
       );
     } catch (e) {
-      this.logger.warn(
-        `Service catalog DB 로드 실패, 메모리 fixture 유지 — ${e instanceof Error ? e.message : String(e)}`,
+      this.logger.error(
+        `Service catalog DB 로드 실패 — ${e instanceof Error ? e.message : String(e)}`,
       );
-      this.persistCatalog = false;
+      throw e;
     }
   }
 
@@ -82,6 +85,14 @@ export class ServiceCatalogService implements OnModuleInit {
       await fn();
     } catch (e) {
       throw new BadRequestException(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  private ensureCatalogWritable(): void {
+    if (!this.sb || !this.persistCatalog) {
+      throw new ServiceUnavailableException(
+        'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for catalog write APIs',
+      );
     }
   }
 
@@ -157,6 +168,7 @@ export class ServiceCatalogService implements OnModuleInit {
   }
 
   async createProduct(dto: CreateServiceProductDto): Promise<ServiceProductRow> {
+    this.ensureCatalogWritable();
     const cat = this.categories.find((c) => c.id === dto.categoryId);
     if (!cat) throw new BadRequestException('category not found');
     if (this.products.some((p) => p.code === dto.code)) throw new BadRequestException('product code exists');
@@ -177,34 +189,31 @@ export class ServiceCatalogService implements OnModuleInit {
       isActive: dto.isActive ?? true,
       sortOrder: dto.sortOrder ?? 0,
     };
-    if (this.persistCatalog && this.sb) {
-      await this.persist(() => insertProductRow(this.sb!, row));
-    }
+    await this.persist(() => insertProductRow(this.sb!, row));
     this.products.unshift(row);
     return row;
   }
 
   async patchProduct(id: string, dto: PatchServiceProductDto): Promise<ServiceProductRow> {
+    this.ensureCatalogWritable();
     const row = this.products.find((p) => p.id === id);
     if (!row) throw new NotFoundException('service product not found');
     Object.assign(row, dto);
-    if (this.persistCatalog && this.sb) {
-      await this.persist(() => replaceProductRow(this.sb!, row));
-    }
+    await this.persist(() => replaceProductRow(this.sb!, row));
     return row;
   }
 
   async deactivateProduct(id: string): Promise<ServiceProductRow> {
+    this.ensureCatalogWritable();
     const row = this.products.find((p) => p.id === id);
     if (!row) throw new NotFoundException('service product not found');
     row.isActive = false;
-    if (this.persistCatalog && this.sb) {
-      await this.persist(() => replaceProductRow(this.sb!, row));
-    }
+    await this.persist(() => replaceProductRow(this.sb!, row));
     return row;
   }
 
   async createAddon(dto: CreateServiceAddonDto): Promise<ServiceAddonRow> {
+    this.ensureCatalogWritable();
     if (this.addons.some((a) => a.code === dto.code)) throw new BadRequestException('addon code exists');
     const row: ServiceAddonRow = {
       id: randomUUID(),
@@ -218,30 +227,26 @@ export class ServiceCatalogService implements OnModuleInit {
       isActive: true,
       sortOrder: 0,
     };
-    if (this.persistCatalog && this.sb) {
-      await this.persist(() => insertAddonRow(this.sb!, row));
-    }
+    await this.persist(() => insertAddonRow(this.sb!, row));
     this.addons.unshift(row);
     return row;
   }
 
   async patchAddon(id: string, dto: PatchServiceAddonDto): Promise<ServiceAddonRow> {
+    this.ensureCatalogWritable();
     const row = this.addons.find((a) => a.id === id);
     if (!row) throw new NotFoundException('service addon not found');
     Object.assign(row, dto);
-    if (this.persistCatalog && this.sb) {
-      await this.persist(() => replaceAddonRow(this.sb!, row));
-    }
+    await this.persist(() => replaceAddonRow(this.sb!, row));
     return row;
   }
 
   async deactivateAddon(id: string): Promise<ServiceAddonRow> {
+    this.ensureCatalogWritable();
     const row = this.addons.find((a) => a.id === id);
     if (!row) throw new NotFoundException('service addon not found');
     row.isActive = false;
-    if (this.persistCatalog && this.sb) {
-      await this.persist(() => replaceAddonRow(this.sb!, row));
-    }
+    await this.persist(() => replaceAddonRow(this.sb!, row));
     return row;
   }
 }

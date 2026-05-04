@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Airconecall</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="mask-icon" href="/favicon.svg" color="#2563eb" />
+    <style>
+      :root {
+        --ink: #101828;
+        --muted: #5b6675;
+        --line: #d8e0ea;
+        --blue: #2563eb;
+        --green: #059669;
+        --soft: #f5f8fb;
+      }
+      * { box-sizing: border-box; font-family: Inter, system-ui, sans-serif; }
+      html { scroll-behavior: smooth; }
+      body { margin: 0; color: var(--ink); background: #fff; }
+      .site-top {
+        min-height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 14px clamp(20px, 5vw, 56px);
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.94);
+      }
+      .top-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+      .nav-link, .nav-button {
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--ink);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .nav-button { cursor: pointer; }
+      .nav-link.primary { color: #fff; border-color: var(--blue); background: var(--blue); }
+      .nav-link.subtle { border-color: transparent; background: transparent; }
+      .shell {
+        position: relative;
+        min-height: calc(100svh - 64px);
+        display: grid;
+        grid-template-columns: minmax(0, 0.92fr) minmax(380px, 1.08fr);
+      }
+      .hero {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: clamp(28px, 6vw, 76px);
+        background: #fff;
+      }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--ink); text-decoration: none; }
+      .brand img { width: 34px; height: 34px; }
+      h1 {
+        margin: 28px 0 18px;
+        max-width: 720px;
+        font-size: clamp(44px, 7vw, 88px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+      .lead { max-width: 600px; color: var(--muted); font-size: clamp(17px, 2vw, 21px); line-height: 1.6; }
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 12px 18px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        text-decoration: none;
+        color: var(--ink);
+        font-weight: 800;
+        background: #fff;
+      }
+      .btn.primary { color: #fff; background: var(--blue); border-color: var(--blue); }
+      .panel {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(24px, 5vw, 64px);
+        background:
+          linear-gradient(90deg, rgba(37, 99, 235, 0.08) 1px, transparent 1px) 0 0 / 42px 42px,
+          linear-gradient(0deg, rgba(5, 150, 105, 0.08) 1px, transparent 1px) 0 0 / 42px 42px,
+          var(--soft);
+      }
+      .flow {
+        width: min(520px, 100%);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 24px;
+        box-shadow: 0 22px 52px -38px rgba(16, 24, 40, 0.5);
+      }
+      .flow h2 { margin: 0; font-size: 24px; letter-spacing: 0; }
+      .flow p { margin: 8px 0 0; color: var(--muted); line-height: 1.6; }
+      .types { display: grid; gap: 10px; margin-top: 22px; }
+      .type {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .type:last-child { border-bottom: 0; }
+      .type strong { display: block; }
+      .type span { display: block; margin-top: 4px; color: var(--muted); font-size: 14px; line-height: 1.45; }
+      .badge { border-radius: 999px; padding: 5px 9px; background: #ecfdf5; color: var(--green); font-size: 12px; font-weight: 800; }
+      .note { margin-top: 22px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+      .scroll-cue {
+        position: absolute;
+        left: 50%;
+        bottom: 24px;
+        z-index: 2;
+        width: 46px;
+        height: 46px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(37, 99, 235, 0.28);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 14px 34px -24px rgba(16, 24, 40, 0.75);
+        transform: translateX(-50%);
+        animation: scrollCue 1.45s ease-in-out infinite;
+      }
+      .scroll-cue span {
+        width: 13px;
+        height: 13px;
+        border-right: 3px solid var(--blue);
+        border-bottom: 3px solid var(--blue);
+        transform: translateY(-2px) rotate(45deg);
+      }
+      @keyframes scrollCue {
+        0%, 100% { transform: translate(-50%, 0); }
+        50% { transform: translate(-50%, 9px); }
+      }
+      .hidden { display: none !important; }
+      .session-note { margin-top: 18px; color: var(--green); font-weight: 800; }
+      .section {
+        padding: clamp(44px, 7vw, 86px) clamp(20px, 5vw, 56px);
+        border-top: 1px solid var(--line);
+        background: #fff;
+      }
+      .section.soft { background: var(--soft); }
+      .section-inner { width: min(1120px, 100%); margin: 0 auto; }
+      .section-head {
+        display: grid;
+        grid-template-columns: minmax(0, 0.78fr) minmax(300px, 0.42fr);
+        gap: 34px;
+        align-items: end;
+        margin-bottom: 28px;
+      }
+      .eyebrow { margin: 0 0 10px; color: var(--blue); font-size: 13px; font-weight: 900; }
+      .section h2 {
+        margin: 0;
+        font-size: clamp(30px, 4vw, 48px);
+        line-height: 1.06;
+        letter-spacing: 0;
+      }
+      .section-copy { margin: 0; color: var(--muted); line-height: 1.65; }
+      .route-list, .step-list, .role-list { display: grid; gap: 0; border-top: 1px solid var(--line); }
+      .route, .step, .role-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: center;
+        padding: 18px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .route strong, .step strong, .role-row strong { display: block; font-size: 17px; }
+      .route span, .step span, .role-row span { display: block; margin-top: 5px; color: var(--muted); line-height: 1.5; }
+      .route a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        color: var(--ink);
+        background: #fff;
+        text-decoration: none;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .step-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; border-top: 0; }
+      .step {
+        grid-template-columns: 1fr;
+        align-content: start;
+        min-height: 154px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+      }
+      .step em { color: var(--blue); font-style: normal; font-weight: 900; }
+      .role-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+      }
+      .role-list { border-top: 0; }
+      @media (max-width: 880px) {
+        .site-top { align-items: flex-start; flex-direction: column; }
+        .top-nav { justify-content: flex-start; }
+        .shell { grid-template-columns: 1fr; }
+        .panel { align-items: start; }
+        .section-head, .role-grid, .step-list { grid-template-columns: 1fr; }
+        .route, .role-row { grid-template-columns: 1fr; }
+        .scroll-cue { bottom: 12px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        .scroll-cue { animation: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-top">
+      <a class="brand" href="/index.html">
+        <img src="/branding/icon-mark.png" alt="" />
+        <span>Airconecall</span>
+      </a>
+      <nav class="top-nav" aria-label="상단 메뉴">
+        <a class="nav-link subtle hidden" id="topHome" href="/index.html">홈화면</a>
+        <a class="nav-link primary hidden" id="topDashboard" href="/dashboard.html">대시보드 화면 보기</a>
+        <button class="nav-button hidden" id="topLogout" type="button" data-logout>로그아웃</button>
+      </nav>
+    </header>
+    <main class="shell">
+      <section class="hero">
+        <div class="brand">
+          <img src="/branding/icon-mark.png" alt="" />
+          <span>Airconecall</span>
+        </div>
+        <h1>Airconecall로 에어컨 서비스를 더 간단하게</h1>
+        <p class="lead">
+          고객의 요청, 기사의 작업, 판매자의 공급, 관리자의 운영을 하나로 연결하는 에어컨 서비스 운영 플랫폼입니다.
+          계정이 있다면 로그인하고, 처음이라면 회원가입으로 시작하세요.
+        </p>
+        <div class="actions">
+          <a class="btn primary" id="loginAction" href="/auth.html#login">로그인</a>
+          <a class="btn" id="signupAction" href="/auth.html#signup">회원가입</a>
+          <a class="btn primary hidden" id="dashboardAction" href="/dashboard.html">대시보드 화면 보기</a>
+        </div>
+        <div class="session-note hidden" id="sessionNote"></div>
+      </section>
+      <aside class="panel">
+        <div class="flow">
+          <h2>가입 유형</h2>
+          <p>관리자 계정은 공개 가입하지 않습니다. 운영자가 DB에서 권한을 부여한 계정만 관리자 역할을 가질 수 있습니다.</p>
+          <div class="types">
+            <div class="type">
+              <div><strong>고객</strong><span>서비스 접수, 쿠폰, 리워드, 우리집 에어컨 관리</span></div>
+              <span class="badge">member</span>
+            </div>
+            <div class="type">
+              <div><strong>기사</strong><span>서류, 계좌, 가능 지역/시간 검토 후 작업 배정</span></div>
+              <span class="badge">technician</span>
+            </div>
+            <div class="type">
+              <div><strong>판매자</strong><span>부품·자재·상품 공급 신청과 운영 검토</span></div>
+              <span class="badge">seller</span>
+            </div>
+          </div>
+          <div class="note">내부 운영 도구는 공개 첫 화면에 노출하지 않습니다.</div>
+        </div>
+      </aside>
+      <a class="scroll-cue" href="#app-entry" aria-label="아래 내용 보기"><span aria-hidden="true"></span></a>
+    </main>
+    <section class="section soft" id="app-entry">
+      <div class="section-inner">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">앱으로 바로가기</p>
+            <h2>첫 화면은 소개, 실제 업무는 로그인 후 역할별 대시보드에서 진행합니다</h2>
+          </div>
+          <p class="section-copy">
+            Airconecall 앱은 고객 문의, 관리자 접수/배차, 기사 작업, 판매자 공급 상태, 쿠폰과 정산을 Supabase 운영 데이터로 연결합니다.
+          </p>
+        </div>
+        <div class="route-list">
+          <div class="route">
+            <div><strong>이미 계정이 있다면</strong><span>전화번호와 비밀번호만 입력하면 저장된 role 기준으로 자동 분기됩니다.</span></div>
+            <a href="/auth.html#login">로그인</a>
+          </div>
+          <div class="route">
+            <div><strong>신규 고객, 기사, 판매자라면</strong><span>회원가입에서 유형을 선택하고 필요한 정보와 서류를 등록합니다.</span></div>
+            <a href="/auth.html#signup">회원가입</a>
+          </div>
+          <div class="route hidden" id="dashboardRoute">
+            <div><strong>현재 로그인된 계정</strong><span id="dashboardRouteText">내 대시보드로 이동합니다.</span></div>
+            <a id="dashboardRouteLink" href="/dashboard.html">대시보드 화면 보기</a>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="section">
+      <div class="section-inner">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">운영 흐름</p>
+            <h2>문의에서 정산까지 하나의 운영 모델로 처리합니다</h2>
+          </div>
+          <p class="section-copy">
+            접수와 배차 상태는 주문 기준으로 관리하고, 회원·쿠폰·기사·판매자 데이터는 로컬 저장이 아니라 Supabase를 기준으로 조회합니다.
+          </p>
+        </div>
+        <div class="step-list">
+          <div class="step"><em>01</em><strong>고객 문의</strong><span>고객은 대시보드에서 서비스 문의와 쿠폰, 회원 정보를 확인합니다.</span></div>
+          <div class="step"><em>02</em><strong>관리자 운영</strong><span>관리자는 전체 회원, 주문, 배차, 상품, 쿠폰, 정산을 CRUD로 관리합니다.</span></div>
+          <div class="step"><em>03</em><strong>기사 작업</strong><span>승인된 기사는 본인에게 배정된 주문과 작업 상태, 자재, 정산만 확인합니다.</span></div>
+          <div class="step"><em>04</em><strong>판매자 검토</strong><span>판매자는 신청 상태와 공급 품목 정보를 확인하고 운영 검토를 기다립니다.</span></div>
+        </div>
+      </div>
+    </section>
+    <section class="section soft">
+      <div class="section-inner role-grid">
+        <div>
+          <p class="eyebrow">역할별 화면</p>
+          <h2>같은 로그인, 다른 권한</h2>
+        </div>
+        <div class="role-list">
+          <div class="role-row"><strong>고객</strong><span>문의 남기기, 회원관리, 쿠폰, 문의 내역</span></div>
+          <div class="role-row"><strong>기사</strong><span>배차/주문, 작업 상태 변경, 자재, 정산</span></div>
+          <div class="role-row"><strong>판매자</strong><span>판매자 신청 상태와 공급 품목 정보</span></div>
+          <div class="role-row"><strong>관리자</strong><span>전체 회원과 운영 데이터 CRUD</span></div>
+        </div>
+      </div>
+    </section>
+    <script src="/session.js"></script>
+    <script>
+      const session = window.AirconecallSession?.read();
+      const topHome = document.getElementById('topHome');
+      const topDashboard = document.getElementById('topDashboard');
+      const topLogout = document.getElementById('topLogout');
+      const dashboardAction = document.getElementById('dashboardAction');
+      const loginAction = document.getElementById('loginAction');
+      const signupAction = document.getElementById('signupAction');
+      const sessionNote = document.getElementById('sessionNote');
+      const dashboardRoute = document.getElementById('dashboardRoute');
+      const dashboardRouteLink = document.getElementById('dashboardRouteLink');
+      const dashboardRouteText = document.getElementById('dashboardRouteText');
+
+      if (session) {
+        const href = window.AirconecallSession.dashboardHref(session);
+        topHome.classList.remove('hidden');
+        topDashboard.href = href;
+        dashboardAction.href = href;
+        dashboardRouteLink.href = href;
+        topDashboard.classList.remove('hidden');
+        topLogout.classList.remove('hidden');
+        dashboardAction.classList.remove('hidden');
+        dashboardRoute.classList.remove('hidden');
+        loginAction.classList.add('hidden');
+        signupAction.classList.add('hidden');
+        sessionNote.textContent = `${window.AirconecallSession.displayName(session)}님 로그인 중`;
+        dashboardRouteText.textContent = `${window.AirconecallSession.displayName(session)}님 계정의 대시보드로 이동합니다.`;
+        sessionNote.classList.remove('hidden');
+      }
+      window.AirconecallSession?.bindLogout();
+    </script>
+  </body>
+</html>

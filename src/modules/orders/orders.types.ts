@@ -2,15 +2,21 @@ export type OrderScheduleType = 'same_day' | 'reservation';
 export type OrderPaymentStatusSpec = 'pending' | 'paid' | 'failed' | 'refunded' | 'partial_refunded';
 export type CustomerOrderLifecycleStatus =
   | 'created'
+  | 'payment_pending'
   | 'paid'
   | 'matching'
   | 'assigned'
   | 'accepted'
   | 'on_the_way'
+  | 'arrived'
+  | 'diagnosed'
+  | 'extra_payment_pending'
   | 'working'
   | 'completed'
   | 'cancelled'
-  | 'refunded';
+  | 'refunded'
+  | 'settlement_pending'
+  | 'settled';
 
 export interface CustomerOrderRow {
   id: string;

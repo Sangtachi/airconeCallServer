@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TechnicianOrderPhotoDto = exports.TechnicianSessionDto = exports.TechnicianSignupDto = exports.TechnicianCapabilityInputDto = void 0;
+exports.TechnicianOrderPhotoDto = exports.TechnicianSessionDto = exports.TechnicianSignupDto = exports.TechnicianDocumentInputDto = exports.TechnicianCapabilityInputDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
@@ -26,6 +26,20 @@ __decorate([
     (0, class_validator_1.IsIn)(['wall', 'stand', 'two_in_one', 'system']),
     __metadata("design:type", String)
 ], TechnicianCapabilityInputDto.prototype, "airconType", void 0);
+class TechnicianDocumentInputDto {
+}
+exports.TechnicianDocumentInputDto = TechnicianDocumentInputDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: ['id_card', 'business_license', 'career', 'insurance', 'bankbook', 'other'] }),
+    (0, class_validator_1.IsIn)(['id_card', 'business_license', 'career', 'insurance', 'bankbook', 'other']),
+    __metadata("design:type", String)
+], TechnicianDocumentInputDto.prototype, "documentType", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '임시 MVP: Storage 업로드 후 URL 또는 외부 파일 URL' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(4),
+    __metadata("design:type", String)
+], TechnicianDocumentInputDto.prototype, "fileUrl", void 0);
 class TechnicianSignupDto {
 }
 exports.TechnicianSignupDto = TechnicianSignupDto;
@@ -42,11 +56,78 @@ __decorate([
     __metadata("design:type", String)
 ], TechnicianSignupDto.prototype, "phone", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ description: '임시 자체 인증용 비밀번호. 추후 SMS/Supabase Auth로 교체' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(5),
+    __metadata("design:type", String)
+], TechnicianSignupDto.prototype, "password", void 0);
+__decorate([
     (0, swagger_1.ApiProperty)({ required: false }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], TechnicianSignupDto.prototype, "baseRegion", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, enum: ['individual', 'sole_business', 'company'] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['individual', 'sole_business', 'company']),
+    __metadata("design:type", String)
+], TechnicianSignupDto.prototype, "businessType", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TechnicianSignupDto.prototype, "businessNumber", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TechnicianSignupDto.prototype, "bankName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TechnicianSignupDto.prototype, "bankAccount", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TechnicianSignupDto.prototype, "bankHolder", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, type: [String], description: '활동 가능 지역 목록' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], TechnicianSignupDto.prototype, "regions", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], TechnicianSignupDto.prototype, "availableSameDay", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], TechnicianSignupDto.prototype, "availableReservation", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], TechnicianSignupDto.prototype, "availableWeekend", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], TechnicianSignupDto.prototype, "availableNight", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ type: [TechnicianCapabilityInputDto] }),
     (0, class_validator_1.IsArray)(),
@@ -55,15 +136,29 @@ __decorate([
     (0, class_transformer_1.Type)(() => TechnicianCapabilityInputDto),
     __metadata("design:type", Array)
 ], TechnicianSignupDto.prototype, "capabilities", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, type: [TechnicianDocumentInputDto] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => TechnicianDocumentInputDto),
+    __metadata("design:type", Array)
+], TechnicianSignupDto.prototype, "documents", void 0);
 class TechnicianSessionDto {
 }
 exports.TechnicianSessionDto = TechnicianSessionDto;
 __decorate([
-    (0, swagger_1.ApiProperty)({ description: '승인된 기사 로그인(데모용 — OTP 없음)' }),
+    (0, swagger_1.ApiProperty)({ description: '승인된 기사 로그인 전화번호' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MinLength)(8),
     __metadata("design:type", String)
 ], TechnicianSessionDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '비밀번호' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(5),
+    __metadata("design:type", String)
+], TechnicianSessionDto.prototype, "password", void 0);
 class TechnicianOrderPhotoDto {
 }
 exports.TechnicianOrderPhotoDto = TechnicianOrderPhotoDto;

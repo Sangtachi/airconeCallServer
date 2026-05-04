@@ -35,7 +35,7 @@ let ServiceCatalogService = ServiceCatalogService_1 = class ServiceCatalogServic
     }
     async onModuleInit() {
         if (!this.sb) {
-            this.logger.log('Service catalog: 메모리 fixture (SUPABASE 없음)');
+            this.logger.warn('Service catalog: Supabase 미설정 — 공개 카탈로그는 fixture로 표시하고, 운영 쓰기 API는 503을 반환합니다.');
             return;
         }
         try {
@@ -56,8 +56,8 @@ let ServiceCatalogService = ServiceCatalogService_1 = class ServiceCatalogServic
             this.logger.log(`Service catalog: Supabase 로드 ${categories.length} 카테고리 / ${products.length} 상품 / ${addons.length} 추가항목`);
         }
         catch (e) {
-            this.logger.warn(`Service catalog DB 로드 실패, 메모리 fixture 유지 — ${e instanceof Error ? e.message : String(e)}`);
-            this.persistCatalog = false;
+            this.logger.error(`Service catalog DB 로드 실패 — ${e instanceof Error ? e.message : String(e)}`);
+            throw e;
         }
     }
     async persist(fn) {
@@ -66,6 +66,11 @@ let ServiceCatalogService = ServiceCatalogService_1 = class ServiceCatalogServic
         }
         catch (e) {
             throw new common_1.BadRequestException(e instanceof Error ? e.message : String(e));
+        }
+    }
+    ensureCatalogWritable() {
+        if (!this.sb || !this.persistCatalog) {
+            throw new common_1.ServiceUnavailableException('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for catalog write APIs');
         }
     }
     getCategories(includeInactive = false) {
@@ -131,6 +136,7 @@ let ServiceCatalogService = ServiceCatalogService_1 = class ServiceCatalogServic
         return row;
     }
     async createProduct(dto) {
+        this.ensureCatalogWritable();
         const cat = this.categories.find((c) => c.id === dto.categoryId);
         if (!cat)
             throw new common_1.BadRequestException('category not found');
@@ -153,33 +159,30 @@ let ServiceCatalogService = ServiceCatalogService_1 = class ServiceCatalogServic
             isActive: dto.isActive ?? true,
             sortOrder: dto.sortOrder ?? 0,
         };
-        if (this.persistCatalog && this.sb) {
-            await this.persist(() => (0, catalog_db_1.insertProductRow)(this.sb, row));
-        }
+        await this.persist(() => (0, catalog_db_1.insertProductRow)(this.sb, row));
         this.products.unshift(row);
         return row;
     }
     async patchProduct(id, dto) {
+        this.ensureCatalogWritable();
         const row = this.products.find((p) => p.id === id);
         if (!row)
             throw new common_1.NotFoundException('service product not found');
         Object.assign(row, dto);
-        if (this.persistCatalog && this.sb) {
-            await this.persist(() => (0, catalog_db_1.replaceProductRow)(this.sb, row));
-        }
+        await this.persist(() => (0, catalog_db_1.replaceProductRow)(this.sb, row));
         return row;
     }
     async deactivateProduct(id) {
+        this.ensureCatalogWritable();
         const row = this.products.find((p) => p.id === id);
         if (!row)
             throw new common_1.NotFoundException('service product not found');
         row.isActive = false;
-        if (this.persistCatalog && this.sb) {
-            await this.persist(() => (0, catalog_db_1.replaceProductRow)(this.sb, row));
-        }
+        await this.persist(() => (0, catalog_db_1.replaceProductRow)(this.sb, row));
         return row;
     }
     async createAddon(dto) {
+        this.ensureCatalogWritable();
         if (this.addons.some((a) => a.code === dto.code))
             throw new common_1.BadRequestException('addon code exists');
         const row = {
@@ -194,30 +197,26 @@ let ServiceCatalogService = ServiceCatalogService_1 = class ServiceCatalogServic
             isActive: true,
             sortOrder: 0,
         };
-        if (this.persistCatalog && this.sb) {
-            await this.persist(() => (0, catalog_db_1.insertAddonRow)(this.sb, row));
-        }
+        await this.persist(() => (0, catalog_db_1.insertAddonRow)(this.sb, row));
         this.addons.unshift(row);
         return row;
     }
     async patchAddon(id, dto) {
+        this.ensureCatalogWritable();
         const row = this.addons.find((a) => a.id === id);
         if (!row)
             throw new common_1.NotFoundException('service addon not found');
         Object.assign(row, dto);
-        if (this.persistCatalog && this.sb) {
-            await this.persist(() => (0, catalog_db_1.replaceAddonRow)(this.sb, row));
-        }
+        await this.persist(() => (0, catalog_db_1.replaceAddonRow)(this.sb, row));
         return row;
     }
     async deactivateAddon(id) {
+        this.ensureCatalogWritable();
         const row = this.addons.find((a) => a.id === id);
         if (!row)
             throw new common_1.NotFoundException('service addon not found');
         row.isActive = false;
-        if (this.persistCatalog && this.sb) {
-            await this.persist(() => (0, catalog_db_1.replaceAddonRow)(this.sb, row));
-        }
+        await this.persist(() => (0, catalog_db_1.replaceAddonRow)(this.sb, row));
         return row;
     }
 };

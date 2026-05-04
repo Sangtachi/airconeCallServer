@@ -15,7 +15,6 @@ var EmergencyLeadDispatchBridge_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmergencyLeadDispatchBridge = void 0;
 const common_1 = require("@nestjs/common");
-const admin_service_1 = require("../admin/admin.service");
 const orders_service_1 = require("../orders/orders.service");
 const service_catalog_service_1 = require("../service-catalog/service-catalog.service");
 const emergency_leads_repository_port_1 = require("./emergency-leads.repository.port");
@@ -30,9 +29,8 @@ class Mutex {
     }
 }
 let EmergencyLeadDispatchBridge = EmergencyLeadDispatchBridge_1 = class EmergencyLeadDispatchBridge {
-    constructor(repo, admin, orders, catalog) {
+    constructor(repo, orders, catalog) {
         this.repo = repo;
-        this.admin = admin;
         this.orders = orders;
         this.catalog = catalog;
         this.logger = new common_1.Logger(EmergencyLeadDispatchBridge_1.name);
@@ -65,14 +63,13 @@ let EmergencyLeadDispatchBridge = EmergencyLeadDispatchBridge_1 = class Emergenc
         return this.tryFinalizeLead(leadRow, { forceBeforeDeadline: true });
     }
     async finalizeLeadBody(fresh, opts) {
-        if (fresh.convertedBookingId &&
-            fresh.convertedOrderId &&
-            fresh.matchingStatus === 'converted_to_order') {
+        if (fresh.convertedOrderId && fresh.matchingStatus === 'converted_to_order') {
             return;
         }
-        if (fresh.convertedBookingId && fresh.convertedOrderId) {
+        if (fresh.convertedOrderId) {
             if (fresh.matchingStatus !== 'converted_to_order') {
                 await this.repo.updatePartial(fresh.id, {
+                    convertedBookingId: fresh.convertedBookingId ?? fresh.convertedOrderId,
                     matchingStatus: 'converted_to_order',
                     updatedAt: new Date().toISOString(),
                 });
@@ -82,9 +79,8 @@ let EmergencyLeadDispatchBridge = EmergencyLeadDispatchBridge_1 = class Emergenc
         const deadlineMs = Date.parse(fresh.matchingDeadlineAt);
         const pastDeadline = Number.isFinite(deadlineMs) && Date.now() >= deadlineMs;
         const needsRepair = fresh.matchingStatus === 'converted_to_order' &&
-            (!fresh.convertedBookingId || !fresh.convertedOrderId);
-        const resumingPartial = Boolean(fresh.convertedBookingId) !== Boolean(fresh.convertedOrderId);
-        const allow = opts.forceBeforeDeadline === true || pastDeadline || needsRepair || resumingPartial;
+            !fresh.convertedOrderId;
+        const allow = opts.forceBeforeDeadline === true || pastDeadline || needsRepair;
         if (!allow)
             return;
         const eligible = [
@@ -109,21 +105,11 @@ let EmergencyLeadDispatchBridge = EmergencyLeadDispatchBridge_1 = class Emergenc
         }
         let productId;
         productId = this.catalog.resolveDefaultEmergencyProductId();
-        if (!row.convertedBookingId) {
-            const booking = this.admin.createBookingFromEmergencyLead(row);
-            await this.repo.updatePartial(row.id, {
-                convertedBookingId: booking.id,
-                updatedAt: nowIso(),
-            });
-            const r3 = await this.repo.findById(row.id);
-            if (!r3)
-                return;
-            row = r3;
-        }
         if (!row.convertedOrderId) {
             const orderRow = await this.orders.createEmergencyLeadDraft(row, productId);
             await this.repo.updatePartial(row.id, {
                 convertedOrderId: orderRow.id,
+                convertedBookingId: orderRow.id,
                 matchingStatus: 'converted_to_order',
                 updatedAt: nowIso(),
             });
@@ -135,8 +121,12 @@ let EmergencyLeadDispatchBridge = EmergencyLeadDispatchBridge_1 = class Emergenc
             });
         }
         const done = await this.repo.findById(row.id);
-        if (done?.convertedBookingId && done?.convertedOrderId && done.matchingStatus !== 'converted_to_order') {
-            await this.repo.updatePartial(done.id, { matchingStatus: 'converted_to_order', updatedAt: nowIso() });
+        if (done?.convertedOrderId && done.matchingStatus !== 'converted_to_order') {
+            await this.repo.updatePartial(done.id, {
+                convertedBookingId: done.convertedBookingId ?? done.convertedOrderId,
+                matchingStatus: 'converted_to_order',
+                updatedAt: nowIso(),
+            });
         }
     }
 };
@@ -144,8 +134,7 @@ exports.EmergencyLeadDispatchBridge = EmergencyLeadDispatchBridge;
 exports.EmergencyLeadDispatchBridge = EmergencyLeadDispatchBridge = EmergencyLeadDispatchBridge_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)(emergency_leads_repository_port_1.EMERGENCY_LEADS_REPO)),
-    __metadata("design:paramtypes", [Object, admin_service_1.AdminService,
-        orders_service_1.OrdersService,
+    __metadata("design:paramtypes", [Object, orders_service_1.OrdersService,
         service_catalog_service_1.ServiceCatalogService])
 ], EmergencyLeadDispatchBridge);
 //# sourceMappingURL=emergency-lead-dispatch.bridge.js.map

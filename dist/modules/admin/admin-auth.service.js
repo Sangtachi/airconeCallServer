@@ -93,7 +93,8 @@ let AdminAuthService = class AdminAuthService {
                 algorithms: ['HS256'],
             });
             const p = decoded;
-            if (p.typ !== 'admin_access' || (p.role !== 'admin' && p.role !== 'super_admin')) {
+            if (p.typ !== 'admin_access' ||
+                !['admin', 'dispatch_admin', 'ops_admin', 'finance_admin', 'super_admin'].includes(String(p.role ?? ''))) {
                 throw new common_1.UnauthorizedException('토큰이 관리 이슈 타입이 아닙니다.');
             }
             return {

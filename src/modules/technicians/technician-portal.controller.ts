@@ -111,7 +111,7 @@ export class TechnicianPortalController {
     return this.orders.technicianListOrderPhotos(req.technician!.id, orderId);
   }
 
-  /** 기존: 공개 URL 문자열 등록(Supabase + 메모리). */
+  /** 공개 URL 문자열 등록(Supabase). */
   @Post('technician/jobs/:orderId/photos')
   addPhoto(
     @Req() req: TechnicianRequest,

@@ -4,7 +4,7 @@ import * as jwt from 'jsonwebtoken';
 
 export type AdminJwtPayload = {
   sub: string;
-  role: 'admin' | 'super_admin';
+  role: 'admin' | 'dispatch_admin' | 'ops_admin' | 'finance_admin' | 'super_admin';
   typ: 'admin_access';
   jti: string;
 };
@@ -26,7 +26,9 @@ export class AdminAuthService {
     return Number.isFinite(raw) && raw > 120 ? raw : 28800;
   }
 
-  issueToken(role: 'admin' | 'super_admin' = 'super_admin'): { accessToken: string; expiresIn: number } {
+  issueToken(
+    role: 'admin' | 'dispatch_admin' | 'ops_admin' | 'finance_admin' | 'super_admin' = 'super_admin',
+  ): { accessToken: string; expiresIn: number } {
     const secret = this.issuanceSecret();
     if (!secret) {
       throw new ServiceUnavailableException(
@@ -63,12 +65,17 @@ export class AdminAuthService {
         algorithms: ['HS256'],
       });
       const p = decoded as jwt.JwtPayload & Partial<AdminJwtPayload>;
-      if (p.typ !== 'admin_access' || (p.role !== 'admin' && p.role !== 'super_admin')) {
+      if (
+        p.typ !== 'admin_access' ||
+        !['admin', 'dispatch_admin', 'ops_admin', 'finance_admin', 'super_admin'].includes(
+          String(p.role ?? ''),
+        )
+      ) {
         throw new UnauthorizedException('토큰이 관리 이슈 타입이 아닙니다.');
       }
       return {
         sub: String(p.sub),
-        role: p.role as 'admin' | 'super_admin',
+        role: p.role as AdminJwtPayload['role'],
         typ: 'admin_access',
         jti: String(p.jti ?? ''),
       };

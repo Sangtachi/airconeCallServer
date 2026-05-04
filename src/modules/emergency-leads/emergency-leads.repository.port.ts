@@ -2,7 +2,7 @@ import type { EmergencyLeadListFilters, EmergencyLeadRow } from './emergency-lea
 
 export const EMERGENCY_LEADS_REPO = Symbol('EMERGENCY_LEADS_REPO');
 
-/** DB / 메모리 공통 레포 계약 */
+/** Supabase-backed emergency lead repository contract. */
 export interface EmergencyLeadsRepositoryPort {
   insert(row: EmergencyLeadRow): Promise<void>;
   findById(id: string): Promise<EmergencyLeadRow | null>;

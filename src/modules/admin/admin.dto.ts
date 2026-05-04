@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { BookingStatus } from './admin.types';
 
 export class AssignTechnicianDto {
@@ -45,6 +45,12 @@ export class CreateTechnicianDto {
   @IsString()
   phone!: string;
 
+  @ApiProperty({ required: false, description: '관리자 생성 시 기사 초기 비밀번호' })
+  @IsOptional()
+  @IsString()
+  @MinLength(5)
+  password?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
@@ -59,6 +65,122 @@ export class CreateMemberDto {
   @ApiProperty()
   @IsString()
   phone!: string;
+
+  @ApiProperty({ required: false, description: '관리자 생성 시 초기 비밀번호' })
+  @IsOptional()
+  @IsString()
+  @MinLength(5)
+  password?: string;
+
+  @ApiProperty({ required: false, enum: ['customer', 'admin', 'super_admin'] })
+  @IsOptional()
+  @IsIn(['customer', 'admin', 'super_admin'])
+  role?: 'customer' | 'admin' | 'super_admin';
+}
+
+export class RegisterMemberDto {
+  @ApiProperty({ description: '전화번호. 숫자/하이픈 모두 허용' })
+  @IsString()
+  phone!: string;
+
+  @ApiProperty({ description: '임시 자체 인증용 비밀번호. 추후 SMS/Supabase Auth로 교체' })
+  @IsString()
+  @MinLength(5)
+  password!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  marketingConsent?: boolean;
+
+  @ApiProperty({ required: false, description: '긴급 리드 또는 주문 참조값' })
+  @IsOptional()
+  @IsString()
+  bookingRef?: string;
+}
+
+export class MemberSessionDto {
+  @ApiProperty({ description: '전화번호. 숫자/하이픈 모두 허용' })
+  @IsString()
+  phone!: string;
+
+  @ApiProperty({ description: '비밀번호' })
+  @IsString()
+  @MinLength(5)
+  password!: string;
+}
+
+export class RegisterSellerDto {
+  @ApiProperty()
+  @IsString()
+  ownerName!: string;
+
+  @ApiProperty({ description: '전화번호. 숫자/하이픈 모두 허용' })
+  @IsString()
+  phone!: string;
+
+  @ApiProperty({ description: '임시 자체 인증용 비밀번호. 추후 SMS/Supabase Auth로 교체' })
+  @IsString()
+  @MinLength(5)
+  password!: string;
+
+  @ApiProperty()
+  @IsString()
+  companyName!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  businessNumber?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  productCategory?: string;
+}
+
+export class CreateSellerDto {
+  @ApiProperty()
+  @IsString()
+  ownerName!: string;
+
+  @ApiProperty({ description: '전화번호. 숫자/하이픈 모두 허용' })
+  @IsString()
+  phone!: string;
+
+  @ApiProperty({ description: '초기 비밀번호' })
+  @IsString()
+  @MinLength(5)
+  password!: string;
+
+  @ApiProperty()
+  @IsString()
+  companyName!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  businessNumber?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  productCategory?: string;
+
+  @ApiProperty({ required: false, enum: ['pending', 'reviewing', 'approved', 'rejected', 'suspended'] })
+  @IsOptional()
+  @IsIn(['pending', 'reviewing', 'approved', 'rejected', 'suspended'])
+  status?: 'pending' | 'reviewing' | 'approved' | 'rejected' | 'suspended';
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  memo?: string;
 }
 
 export class UpdateMemberDto {
@@ -77,10 +199,64 @@ export class UpdateMemberDto {
   @IsIn(['active', 'inactive', 'banned'])
   status?: 'active' | 'inactive' | 'banned';
 
+  @ApiProperty({ required: false, enum: ['customer', 'admin', 'super_admin'] })
+  @IsOptional()
+  @IsIn(['customer', 'admin', 'super_admin'])
+  role?: 'customer' | 'admin' | 'super_admin';
+
+  @ApiProperty({ required: false, description: '비워두면 변경하지 않음' })
+  @IsOptional()
+  @IsString()
+  @MinLength(5)
+  password?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
   marketingConsent?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  memo?: string;
+}
+
+export class UpdateSellerDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  ownerName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({ required: false, description: '비워두면 변경하지 않음' })
+  @IsOptional()
+  @IsString()
+  @MinLength(5)
+  password?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  companyName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  businessNumber?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  productCategory?: string;
+
+  @ApiProperty({ required: false, enum: ['pending', 'reviewing', 'approved', 'rejected', 'suspended'] })
+  @IsOptional()
+  @IsIn(['pending', 'reviewing', 'approved', 'rejected', 'suspended'])
+  status?: 'pending' | 'reviewing' | 'approved' | 'rejected' | 'suspended';
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -143,6 +319,12 @@ export class UpdateTechnicianDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @ApiProperty({ required: false, description: '비워두면 변경하지 않음' })
+  @IsOptional()
+  @IsString()
+  @MinLength(5)
+  password?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -228,4 +410,20 @@ export class ReviewOnboardingDto {
   @IsOptional()
   @IsString()
   rejectReason?: string;
+}
+
+export class CreateAdminInviteDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @ApiProperty({ enum: ['dispatch_admin', 'ops_admin', 'finance_admin', 'super_admin'] })
+  @IsIn(['dispatch_admin', 'ops_admin', 'finance_admin', 'super_admin'])
+  role!: 'dispatch_admin' | 'ops_admin' | 'finance_admin' | 'super_admin';
 }

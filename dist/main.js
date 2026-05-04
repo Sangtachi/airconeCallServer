@@ -91,15 +91,17 @@ async function bootstrap() {
     }));
     app.useGlobalFilters(new http_exception_filter_1.HttpExceptionEnvelopeFilter());
     app.useGlobalInterceptors(new response_envelope_interceptor_1.ResponseEnvelopeInterceptor());
-    const config = new swagger_1.DocumentBuilder()
-        .setTitle('Aircone Call Backend')
-        .setDescription('관리 JWT·추가금 견적·모의결제 등. ADMIN_LEGACY_X_ADMIN_ROLE 로 x-admin-role 폴백 가능.')
-        .setVersion('0.2.0')
-        .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'admin-jwt')
-        .addApiKey({ type: 'apiKey', in: 'header', name: 'x-admin-role' }, 'admin-role')
-        .build();
-    const doc = swagger_1.SwaggerModule.createDocument(app, config);
-    swagger_1.SwaggerModule.setup('api/docs', app, doc);
+    const swaggerEnabled = process.env.ENABLE_SWAGGER === 'true';
+    if (swaggerEnabled) {
+        const config = new swagger_1.DocumentBuilder()
+            .setTitle('Airconecall Backend')
+            .setDescription('관리자 role-only 헤더(x-admin-role)·추가금 견적·모의결제 API')
+            .setVersion('0.2.0')
+            .addApiKey({ type: 'apiKey', in: 'header', name: 'x-admin-role' }, 'admin-role')
+            .build();
+        const doc = swagger_1.SwaggerModule.createDocument(app, config);
+        swagger_1.SwaggerModule.setup('api/docs', app, doc);
+    }
     const port = Number(process.env.PORT || 4000);
     await app.listen(port);
     console.log(`admin backend listening on :${port}`);

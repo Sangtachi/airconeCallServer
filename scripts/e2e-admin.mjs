@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
  * 실행 전: npm run dev (또는 start) 후
- *   ADMIN_BOOTSTRAP_PASSWORD=dev ADMIN_JWT_SECRET=0123456789abcdef npm run dev
  *   npm run test:e2e-base
  *
  * 긴급 접수 자동 전환 검증에는 매칭 마감까지 대기(짧은 timeout) 후 PATCH /timeout 필요.
@@ -34,22 +33,8 @@ async function main() {
   const metrics = await req('/api/metrics');
   console.log('[metrics]', metrics.res.status, Object.keys(metrics.json));
 
-  let token;
-  try {
-    const login = await req('/api/admin/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ password: process.env.ADMIN_BOOTSTRAP_PASSWORD || 'dev' }),
-    });
-    if (!login.json.ok || !login.json.data?.accessToken) {
-      throw new Error('login failed (set ADMIN_BOOTSTRAP_PASSWORD + ADMIN_JWT_SECRET): ' + JSON.stringify(login.json));
-    }
-    token = login.json.data.accessToken;
-    console.log('[login] ok, token length', token.length);
-  } catch (e) {
-    console.warn('[login] skip —', e.message);
-  }
-
-  const hdr = token ? { Authorization: `Bearer ${token}` } : { 'x-admin-role': 'admin' };
+  // 이번 단계는 role-only 임시 모드이므로 x-admin-role 헤더로 검증한다.
+  const hdr = { 'x-admin-role': 'super_admin' };
 
   const addons = await req('/api/admin/service-addons?includeInactive=1', { headers: hdr });
   if (!addons.json.ok) throw new Error('addons: ' + JSON.stringify(addons.json));
@@ -85,26 +70,23 @@ async function main() {
   });
   if (!tout.json.ok) throw new Error('emergency-leads timeout: ' + JSON.stringify(tout.json));
   const converted = tout.json.data;
-  if (!converted?.convertedBookingId || !converted?.convertedOrderId) {
-    throw new Error('expected converted booking/order ids after timeout: ' + JSON.stringify(converted));
+  if (!converted?.convertedOrderId) {
+    throw new Error('expected converted order id after timeout: ' + JSON.stringify(converted));
   }
   if (converted.matchingStatus !== 'converted_to_order') {
     throw new Error('expected converted_to_order, got ' + JSON.stringify(converted.matchingStatus));
   }
-  console.log('[emergency-leads PATCH timeout]', 'booking', converted.convertedBookingId, 'order', converted.convertedOrderId);
-
-  const bookings = await req('/api/admin/bookings', { headers: hdr });
-  if (!bookings.json.ok) throw new Error('bookings: ' + JSON.stringify(bookings.json));
-  const bl = bookings.json.data;
-  const bk = Array.isArray(bl) ? bl.find((b) => String(b.sourceEmergencyLeadId ?? '') === String(leadId)) : null;
-  if (!bk) throw new Error(`no booking with sourceEmergencyLeadId=${leadId}`);
-  console.log('[bookings]', 'matched emergency booking', bk.id);
+  if (converted.convertedBookingId && converted.convertedBookingId !== converted.convertedOrderId) {
+    throw new Error('deprecated convertedBookingId must match convertedOrderId: ' + JSON.stringify(converted));
+  }
+  console.log('[emergency-leads PATCH timeout]', 'order', converted.convertedOrderId);
 
   const orders = await req('/api/admin/customer-orders', { headers: hdr });
   if (!orders.json.ok) throw new Error('orders: ' + JSON.stringify(orders.json));
   const ol = orders.json.data;
   const ord = Array.isArray(ol) ? ol.find((o) => String(o.id) === String(converted.convertedOrderId)) : null;
   if (!ord) throw new Error(`order draft ${converted.convertedOrderId} not in admin list`);
+  console.log('[customer-orders]', 'matched emergency order', ord.id);
 
   const tout2 = await req(`/api/emergency-leads/${leadId}/timeout`, {
     method: 'PATCH',
@@ -112,10 +94,10 @@ async function main() {
   });
   if (!tout2.json.ok) throw new Error('duplicate timeout failed: ' + JSON.stringify(tout2.json));
   const again = tout2.json.data;
-  if (again.convertedBookingId !== converted.convertedBookingId || again.convertedOrderId !== converted.convertedOrderId) {
+  if (again.convertedOrderId !== converted.convertedOrderId) {
     throw new Error(`idempotency violated: ${JSON.stringify(again)} vs ${JSON.stringify(converted)}`);
   }
-  console.log('[duplicate timeout] same booking/order ids OK');
+  console.log('[duplicate timeout] same order id OK');
 
   const leadList = await req('/api/admin/emergency-leads', { headers: hdr });
   if (!leadList.json.ok) throw new Error('emergency-leads list: ' + JSON.stringify(leadList.json));

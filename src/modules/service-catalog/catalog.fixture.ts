@@ -1,6 +1,6 @@
 import type { ServiceAddonRow, ServiceCategoryRow, ServiceProductRow } from './service-catalog.types';
 
-/** 시드/fixture 초기값. 운영(SUPABASE)에서는 DB가 비었을 때만 자동 upsert 후 메모리에 로드된다. */
+/** 시드/fixture 초기값. Supabase service catalog가 비었을 때만 자동 upsert한다. */
 
 export const CATALOG_FIXTURE_CATEGORIES: ServiceCategoryRow[] = [
   {

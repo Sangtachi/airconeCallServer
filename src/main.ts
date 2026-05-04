@@ -119,15 +119,17 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionEnvelopeFilter());
   app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
 
-  const config = new DocumentBuilder()
-    .setTitle('Aircone Call Backend')
-    .setDescription('관리 JWT·추가금 견적·모의결제 등. ADMIN_LEGACY_X_ADMIN_ROLE 로 x-admin-role 폴백 가능.')
-    .setVersion('0.2.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'admin-jwt')
-    .addApiKey({ type: 'apiKey', in: 'header', name: 'x-admin-role' }, 'admin-role')
-    .build();
-  const doc = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, doc);
+  const swaggerEnabled = process.env.ENABLE_SWAGGER === 'true';
+  if (swaggerEnabled) {
+    const config = new DocumentBuilder()
+      .setTitle('Airconecall Backend')
+      .setDescription('관리자 role-only 헤더(x-admin-role)·추가금 견적·모의결제 API')
+      .setVersion('0.2.0')
+      .addApiKey({ type: 'apiKey', in: 'header', name: 'x-admin-role' }, 'admin-role')
+      .build();
+    const doc = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, doc);
+  }
 
   const port = Number(process.env.PORT || 4000);
   await app.listen(port);

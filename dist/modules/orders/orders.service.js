@@ -26,6 +26,9 @@ function technicianIdForPhotosForeignKey(technicianId) {
         ? technicianId.trim()
         : null;
 }
+function isUuid(v) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v.trim());
+}
 function settlementRowFromDb(r) {
     return {
         id: String(r.id),
@@ -70,7 +73,12 @@ let OrdersService = OrdersService_1 = class OrdersService {
         this.catalog = catalog;
         this.store = store;
         this.sb = sb;
-        this.photosMemory = new Map();
+    }
+    db() {
+        if (!this.sb) {
+            throw new common_1.ServiceUnavailableException('OrdersService requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
+        }
+        return this.sb;
     }
     async createEmergencyLeadDraft(lead, productId) {
         const placeholderPhone = '01000001234';
@@ -158,7 +166,12 @@ let OrdersService = OrdersService_1 = class OrdersService {
             row.adminMemo = dto.adminMemo;
         if (dto.assignedTechnicianId !== undefined) {
             const v = dto.assignedTechnicianId;
-            row.assignedTechnicianId = v === '' || v === null ? null : v;
+            if (v === '' || v === null) {
+                row.assignedTechnicianId = null;
+            }
+            else {
+                row.assignedTechnicianId = await this.requireApprovedTechnicianId(v);
+            }
         }
         if (dto.orderStatus !== undefined) {
             row.orderStatus = dto.orderStatus;
@@ -174,6 +187,22 @@ let OrdersService = OrdersService_1 = class OrdersService {
         row.updatedAt = now;
         await this.store.replace(row);
         return row;
+    }
+    async requireApprovedTechnicianId(technicianId) {
+        const id = technicianId.trim();
+        if (!isUuid(id))
+            throw new common_1.BadRequestException('assignedTechnicianId must be an approved technician UUID');
+        const { data, error } = await this.db()
+            .from('technicians')
+            .select('id, status')
+            .eq('id', id)
+            .maybeSingle();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        if (!data || String(data.status) !== 'approved') {
+            throw new common_1.BadRequestException('assignedTechnicianId must reference an approved technician');
+        }
+        return id;
     }
     async mockConfirmPayment(orderId) {
         const row = await this.getOrder(orderId);
@@ -193,7 +222,17 @@ let OrdersService = OrdersService_1 = class OrdersService {
         const all = await this.store.listNewestFirst();
         return all.filter((o) => o.assignedTechnicianId === technicianId &&
             o.paymentStatus === 'paid' &&
-            ['assigned', 'accepted', 'on_the_way', 'working', 'completed'].includes(o.orderStatus));
+            [
+                'assigned',
+                'accepted',
+                'on_the_way',
+                'arrived',
+                'diagnosed',
+                'extra_payment_pending',
+                'working',
+                'completed',
+                'settlement_pending',
+            ].includes(o.orderStatus));
     }
     assertTechnicianAccess(row, technicianId) {
         if (row.assignedTechnicianId !== technicianId) {
@@ -250,13 +289,12 @@ let OrdersService = OrdersService_1 = class OrdersService {
         return row;
     }
     async upsertSettlementForCompletedJob(order, technicianId) {
-        if (!this.sb)
-            return;
+        const sb = this.db();
         const gross = Math.max(0, Math.round(Number(order.totalPrice) || 0));
         let feeRatePercent = 20;
         const uuidTech = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(technicianId.trim());
         if (uuidTech) {
-            const { data: tech, error } = await this.sb
+            const { data: tech, error } = await sb
                 .from('technicians')
                 .select('platform_fee_rate')
                 .eq('id', technicianId)
@@ -270,7 +308,7 @@ let OrdersService = OrdersService_1 = class OrdersService {
         const feeBase = Math.max(0, gross - materialAllowance);
         const platformFee = Math.round((feeBase * feeRatePercent) / 100);
         const technicianPayout = feeBase - platformFee;
-        const { error: upErr } = await this.sb.from('order_settlements').upsert({
+        const { error: upErr } = await sb.from('order_settlements').upsert({
             order_id: order.id,
             technician_id: technicianId,
             gross_amount: gross,
@@ -288,9 +326,8 @@ let OrdersService = OrdersService_1 = class OrdersService {
             throw new common_1.BadRequestException(upErr.message);
     }
     async technicianListSettlements(technicianId) {
-        if (!this.sb)
-            return [];
-        const { data: rows, error } = await this.sb
+        const sb = this.db();
+        const { data: rows, error } = await sb
             .from('order_settlements')
             .select('*')
             .eq('technician_id', technicianId)
@@ -301,7 +338,7 @@ let OrdersService = OrdersService_1 = class OrdersService {
         const orderIds = [...new Set(list.map((x) => String(x.order_id ?? '')))].filter(Boolean);
         let orderNoById = new Map();
         if (orderIds.length > 0) {
-            const { data: ordRows, error: oErr } = await this.sb
+            const { data: ordRows, error: oErr } = await sb
                 .from('orders')
                 .select('id, order_no')
                 .in('id', orderIds);
@@ -317,9 +354,7 @@ let OrdersService = OrdersService_1 = class OrdersService {
         });
     }
     async technicianListMaterials() {
-        if (!this.sb)
-            return [];
-        const { data, error } = await this.sb
+        const { data, error } = await this.db()
             .from('materials')
             .select('*')
             .eq('is_active', true)
@@ -329,15 +364,14 @@ let OrdersService = OrdersService_1 = class OrdersService {
         return (data ?? []).map((r) => materialRowFromDb(r));
     }
     async technicianPresignOrderPhoto(technicianId, orderId, dto) {
-        if (!this.sb)
-            throw new common_1.BadRequestException('Supabase 가 설정된 환경에서만 파일 업로드 presign 사용 가능합니다');
+        const sb = this.db();
         const row = await this.getOrder(orderId);
         this.assertTechnicianAccess(row, technicianId);
         const bucket = (0, order_photo_storage_paths_1.orderPhotosBucketName)();
         const ext = (0, order_photo_storage_paths_1.extFromMime)(dto.mimeType ?? 'image/jpeg');
         const photoId = (0, node_crypto_1.randomUUID)().replace(/-/g, '');
         const path = `orders/${orderId}/${photoId}.${ext}`;
-        const { data, error } = await this.sb.storage.from(bucket).createSignedUploadUrl(path, { upsert: true });
+        const { data, error } = await sb.storage.from(bucket).createSignedUploadUrl(path, { upsert: true });
         if (error || !data)
             throw new common_1.BadRequestException(error?.message ?? 'presign failed');
         return {
@@ -349,21 +383,19 @@ let OrdersService = OrdersService_1 = class OrdersService {
         };
     }
     async technicianConfirmStoragePhoto(technicianId, orderId, dto) {
-        if (!this.sb)
-            throw new common_1.BadRequestException('Supabase 가 설정된 환경에서만 스토리지 확인 등록 가능합니다');
+        const sb = this.db();
         const row = await this.getOrder(orderId);
         this.assertTechnicianAccess(row, technicianId);
         (0, order_photo_storage_paths_1.assertOrderPhotoStoragePath)(dto.path, orderId);
         const bucket = (0, order_photo_storage_paths_1.orderPhotosBucketName)();
         const objectPath = dto.path.trim();
-        const { data: pub } = this.sb.storage.from(bucket).getPublicUrl(objectPath);
+        const { data: pub } = sb.storage.from(bucket).getPublicUrl(objectPath);
         const publicUrl = pub?.publicUrl?.trim() ?? '';
         const url = this.photoRowUrlForStorage(publicUrl, bucket, objectPath);
         return this.insertPhotoRecord(orderId, technicianId, dto.kind, url, dto.caption ?? null, bucket, objectPath);
     }
     async technicianUploadMultipartPhoto(technicianId, orderId, kind, file, caption) {
-        if (!this.sb)
-            throw new common_1.BadRequestException('Supabase 가 설정된 환경에서만 서버 업로드 가능합니다');
+        const sb = this.db();
         if (!file?.buffer?.length)
             throw new common_1.BadRequestException('file required');
         const mime = String(file.mimetype || '').split(';')[0].toLowerCase() || 'application/octet-stream';
@@ -375,12 +407,12 @@ let OrdersService = OrdersService_1 = class OrdersService {
         const ext = (0, order_photo_storage_paths_1.extFromMime)(mime);
         const photoId = (0, node_crypto_1.randomUUID)().replace(/-/g, '');
         const path = `orders/${orderId}/${photoId}.${ext}`;
-        const { error: upErr } = await this.sb.storage
+        const { error: upErr } = await sb.storage
             .from(bucket)
             .upload(path, file.buffer, { contentType: mime, upsert: true });
         if (upErr)
             throw new common_1.BadRequestException(upErr.message);
-        const { data: pub } = this.sb.storage.from(bucket).getPublicUrl(path);
+        const { data: pub } = sb.storage.from(bucket).getPublicUrl(path);
         const publicUrl = pub?.publicUrl?.trim() ?? '';
         const url = this.photoRowUrlForStorage(publicUrl, bucket, path);
         return this.insertPhotoRecord(orderId, technicianId, kind, url, caption ?? null, bucket, path);
@@ -410,7 +442,8 @@ let OrdersService = OrdersService_1 = class OrdersService {
             caption,
             createdAt: now,
         };
-        if (this.sb) {
+        {
+            const sb = this.db();
             const row = {
                 id: rec.id,
                 order_id: rec.orderId,
@@ -423,21 +456,18 @@ let OrdersService = OrdersService_1 = class OrdersService {
                 row.storage_bucket = storageBucket;
                 row.storage_object_path = storageObjectPath;
             }
-            const { error } = await this.sb.from('order_photos').insert(row);
+            const { error } = await sb.from('order_photos').insert(row);
             if (error)
                 throw new common_1.BadRequestException(error.message);
             return rec;
         }
-        const arr = [...(this.photosMemory.get(orderId) ?? [])];
-        arr.push(rec);
-        this.photosMemory.set(orderId, arr);
-        return rec;
     }
     async technicianListOrderPhotos(technicianId, orderId) {
         const row = await this.getOrder(orderId);
         this.assertTechnicianAccess(row, technicianId);
-        if (this.sb) {
-            const { data, error } = await this.sb
+        {
+            const sb = this.db();
+            const { data, error } = await sb
                 .from('order_photos')
                 .select('*')
                 .eq('order_id', orderId)
@@ -452,7 +482,7 @@ let OrdersService = OrdersService_1 = class OrdersService {
                 const b = row.storage_bucket == null ? null : String(row.storage_bucket);
                 const p = row.storage_object_path == null ? null : String(row.storage_object_path);
                 if (ttl > 0 && b && p) {
-                    const { data: signed, error: se } = await this.sb.storage.from(b).createSignedUrl(p, ttl);
+                    const { data: signed, error: se } = await sb.storage.from(b).createSignedUrl(p, ttl);
                     if (!se && signed?.signedUrl)
                         url = signed.signedUrl;
                 }
@@ -463,8 +493,6 @@ let OrdersService = OrdersService_1 = class OrdersService {
             }
             return out;
         }
-        const list = this.photosMemory.get(orderId) ?? [];
-        return [...list].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     }
     async technicianAddOrderPhoto(technicianId, orderId, dto) {
         const row = await this.getOrder(orderId);

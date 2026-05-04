@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS technicians (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   phone TEXT NOT NULL UNIQUE,
+  password_hash TEXT NULL,
+  password_updated_at TIMESTAMPTZ NULL,
 
   business_type TEXT NOT NULL DEFAULT 'individual' CHECK (business_type IN ('individual','sole_business','company')),
   business_number TEXT NULL,
@@ -28,6 +30,10 @@ CREATE TABLE IF NOT EXISTS technicians (
 
 CREATE INDEX IF NOT EXISTS ix_technicians_phone ON technicians(phone);
 CREATE INDEX IF NOT EXISTS ix_technicians_status ON technicians(status);
+
+ALTER TABLE technicians
+  ADD COLUMN IF NOT EXISTS password_hash TEXT NULL,
+  ADD COLUMN IF NOT EXISTS password_updated_at TIMESTAMPTZ NULL;
 
 DROP TRIGGER IF EXISTS tr_technicians_updated ON technicians;
 CREATE TRIGGER tr_technicians_updated BEFORE UPDATE ON technicians FOR EACH ROW EXECUTE FUNCTION touch_updated_at();

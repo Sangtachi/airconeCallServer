@@ -9,7 +9,29 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DatabaseModule = void 0;
 const common_1 = require("@nestjs/common");
 const supabase_js_1 = require("@supabase/supabase-js");
+const node_fs_1 = require("node:fs");
+const node_path_1 = require("node:path");
+const node_process_1 = require("node:process");
 const database_tokens_1 = require("./database.tokens");
+let localEnvLoaded = false;
+function loadLocalEnvIfPresent() {
+    if (localEnvLoaded)
+        return;
+    localEnvLoaded = true;
+    const env = process.env.NODE_ENV?.trim() || 'development';
+    const candidates = [
+        `.env.${env}.local`,
+        '.env.local',
+        `.env.${env}`,
+        '.env',
+    ];
+    for (const name of candidates) {
+        const envPath = (0, node_path_1.join)(process.cwd(), name);
+        if ((0, node_fs_1.existsSync)(envPath)) {
+            (0, node_process_1.loadEnvFile)(envPath);
+        }
+    }
+}
 let DatabaseModule = class DatabaseModule {
 };
 exports.DatabaseModule = DatabaseModule;
@@ -20,6 +42,7 @@ exports.DatabaseModule = DatabaseModule = __decorate([
             {
                 provide: database_tokens_1.SUPABASE_ADMIN,
                 useFactory: () => {
+                    loadLocalEnvIfPresent();
                     const url = process.env.SUPABASE_URL?.trim();
                     const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
                     if (!url || !key)

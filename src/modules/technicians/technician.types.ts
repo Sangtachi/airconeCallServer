@@ -18,8 +18,10 @@ export interface TechnicianEntity {
   id: string;
   name: string;
   phone: string;
+  passwordHash: string | null;
   businessType: 'individual' | 'sole_business' | 'company';
   businessNumber: string | null;
+  careerYears: number | null;
   status: TechnicianSignupStatus;
   workStatus: TechnicianWorkStatus;
   baseRegion: string | null;
@@ -32,4 +34,12 @@ export interface TechnicianEntity {
   memo: string | null;
   createdAt: string;
   capabilities: TechnicianCapability[];
+  regions: string[];
+  availability: Array<'same_day' | 'reservation' | 'weekend' | 'night'>;
+  documents: Array<{
+    id: string;
+    documentType: string;
+    fileUrl: string;
+    status: 'pending' | 'approved' | 'rejected';
+  }>;
 }

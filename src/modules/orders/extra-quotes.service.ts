@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -37,13 +38,19 @@ export type ExtraQuoteRow = {
 
 @Injectable()
 export class ExtraQuotesService {
-  private readonly memOrderQuoteIds = new Map<string, string[]>();
-  private readonly memQuotes = new Map<string, ExtraQuoteRow>();
-
   constructor(
     @Inject(SUPABASE_ADMIN) private readonly sb: SupabaseClient | null,
     private readonly orders: OrdersService,
   ) {}
+
+  private db(): SupabaseClient {
+    if (!this.sb) {
+      throw new ServiceUnavailableException(
+        'Extra quote APIs require SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY',
+      );
+    }
+    return this.sb;
+  }
 
   async technicianCreateQuote(
     technicianId: string,
@@ -68,10 +75,10 @@ export class ExtraQuotesService {
     });
     const totalAmount = itemsIn.reduce((s, r) => s + r.amount, 0);
 
-    if (this.sb) {
-      const qid = randomUUID();
-      const now = new Date().toISOString();
-      const { error: e1 } = await this.sb.from('order_extra_quotes').insert({
+    const sb = this.db();
+    const qid = randomUUID();
+    const now = new Date().toISOString();
+    const { error: e1 } = await sb.from('order_extra_quotes').insert({
         id: qid,
         order_id: orderId,
         technician_id: technicianId,
@@ -82,12 +89,12 @@ export class ExtraQuotesService {
         memo: dto.memo?.trim() ?? null,
         created_at: now,
         updated_at: now,
-      });
-      if (e1) throw new BadRequestException(e1.message);
-      const itemRows: ExtraQuoteItemRow[] = [];
-      for (const r of itemsIn) {
-        const iid = randomUUID();
-        const { error: e2 } = await this.sb.from('order_extra_quote_items').insert({
+    });
+    if (e1) throw new BadRequestException(e1.message);
+    const itemRows: ExtraQuoteItemRow[] = [];
+    for (const r of itemsIn) {
+      const iid = randomUUID();
+      const { error: e2 } = await sb.from('order_extra_quote_items').insert({
           id: iid,
           quote_id: qid,
           addon_id: r.addonId,
@@ -97,49 +104,22 @@ export class ExtraQuotesService {
           unit: r.unit,
           unit_price: r.unitPrice,
           amount: r.amount,
-        });
-        if (e2) throw new BadRequestException(e2.message);
-        itemRows.push({
-          id: iid,
-          quoteId: qid,
-          addonId: r.addonId,
-          materialId: r.materialId,
-          name: r.name,
-          quantity: r.quantity,
-          unit: r.unit,
-          unitPrice: r.unitPrice,
-          amount: r.amount,
-        });
-      }
-      return {
-        id: qid,
-        orderId,
-        technicianId,
-        status: 'requested',
-        totalAmount,
-        customerApprovedAt: null,
-        paidAt: null,
-        memo: dto.memo?.trim() ?? null,
-        createdAt: now,
-        items: itemRows,
-      };
+      });
+      if (e2) throw new BadRequestException(e2.message);
+      itemRows.push({
+        id: iid,
+        quoteId: qid,
+        addonId: r.addonId,
+        materialId: r.materialId,
+        name: r.name,
+        quantity: r.quantity,
+        unit: r.unit,
+        unitPrice: r.unitPrice,
+        amount: r.amount,
+      });
     }
-
-    const id = randomUUID();
-    const now = new Date().toISOString();
-    const itemRows: ExtraQuoteItemRow[] = itemsIn.map((r) => ({
-      id: randomUUID(),
-      quoteId: id,
-      addonId: r.addonId,
-      materialId: r.materialId,
-      name: r.name,
-      quantity: r.quantity,
-      unit: r.unit,
-      unitPrice: r.unitPrice,
-      amount: r.amount,
-    }));
-    const row: ExtraQuoteRow = {
-      id,
+    return {
+      id: qid,
       orderId,
       technicianId,
       status: 'requested',
@@ -150,17 +130,13 @@ export class ExtraQuotesService {
       createdAt: now,
       items: itemRows,
     };
-    this.memQuotes.set(id, row);
-    const arr = [...(this.memOrderQuoteIds.get(orderId) ?? [])];
-    arr.unshift(id);
-    this.memOrderQuoteIds.set(orderId, arr);
-    return row;
   }
 
   async technicianListQuotes(technicianId: string, orderId: string): Promise<ExtraQuoteRow[]> {
     await this.orders.technicianGetJob(technicianId, orderId);
-    if (this.sb) {
-      const { data: quotes, error } = await this.sb
+    {
+      const sb = this.db();
+      const { data: quotes, error } = await sb
         .from('order_extra_quotes')
         .select('*')
         .eq('order_id', orderId)
@@ -170,7 +146,7 @@ export class ExtraQuotesService {
       for (const q of quotes ?? []) {
         const rec = q as Record<string, unknown>;
         const qid = String(rec.id);
-        const { data: items, error: ie } = await this.sb
+        const { data: items, error: ie } = await sb
           .from('order_extra_quote_items')
           .select('*')
           .eq('quote_id', qid);
@@ -179,13 +155,12 @@ export class ExtraQuotesService {
       }
       return out;
     }
-    const ids = this.memOrderQuoteIds.get(orderId) ?? [];
-    return ids.map((i) => this.memQuotes.get(i)).filter(Boolean) as ExtraQuoteRow[];
   }
 
   async adminListQuotes(orderId?: string): Promise<ExtraQuoteRow[]> {
-    if (this.sb) {
-      let q = this.sb.from('order_extra_quotes').select('*').order('created_at', { ascending: false });
+    {
+      const sb = this.db();
+      let q = sb.from('order_extra_quotes').select('*').order('created_at', { ascending: false });
       if (orderId) q = q.eq('order_id', orderId);
       const { data: quotes, error } = await q;
       if (error) throw new BadRequestException(error.message);
@@ -193,7 +168,7 @@ export class ExtraQuotesService {
       for (const qrow of quotes ?? []) {
         const rec = qrow as Record<string, unknown>;
         const qid = String(rec.id);
-        const { data: items, error: ie } = await this.sb
+        const { data: items, error: ie } = await sb
           .from('order_extra_quote_items')
           .select('*')
           .eq('quote_id', qid);
@@ -202,11 +177,6 @@ export class ExtraQuotesService {
       }
       return out;
     }
-    if (orderId) {
-      const ids = this.memOrderQuoteIds.get(orderId) ?? [];
-      return ids.map((i) => this.memQuotes.get(i)).filter(Boolean) as ExtraQuoteRow[];
-    }
-    return [...this.memQuotes.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async adminCustomerApprove(quoteId: string): Promise<ExtraQuoteRow> {
@@ -227,10 +197,11 @@ export class ExtraQuotesService {
     if (row.status !== 'approved') {
       throw new BadRequestException('견적이 고객 승인(approved) 상태일 때만 결제 기록을 남길 수 있습니다.');
     }
-    if (this.sb) {
+    {
+      const sb = this.db();
       const paymentId = randomUUID();
       const paidAt = new Date().toISOString();
-      const { error: pe } = await this.sb.from('payments').insert({
+      const { error: pe } = await sb.from('payments').insert({
         id: paymentId,
         order_id: row.orderId,
         provider: 'manual',
@@ -241,7 +212,7 @@ export class ExtraQuotesService {
         raw_response: { source: 'mock_extra_quote', quoteId },
       });
       if (pe) throw new BadRequestException(pe.message);
-      const { error: qe } = await this.sb
+      const { error: qe } = await sb
         .from('order_extra_quotes')
         .update({ status: 'paid', paid_at: paidAt, updated_at: paidAt })
         .eq('id', quoteId);
@@ -249,11 +220,6 @@ export class ExtraQuotesService {
       const fresh = await this.fetchOneDb(quoteId);
       return { quote: fresh, paymentId };
     }
-    const mem = this.memQuotes.get(quoteId);
-    if (!mem) throw new NotFoundException('quote not found');
-    mem.status = 'paid';
-    mem.paidAt = new Date().toISOString();
-    return { quote: mem, paymentId: `mock_${randomUUID()}` };
   }
 
   private async transitionQuote(
@@ -273,33 +239,25 @@ export class ExtraQuotesService {
       throw new BadRequestException('requested 상태에서만 반려할 수 있습니다.');
     }
     const now = new Date().toISOString();
-    if (this.sb) {
+    {
       const patch: Record<string, unknown> = { status: to, updated_at: now };
       if (opts.setCustomerApprovedAt) patch.customer_approved_at = now;
-      const { error } = await this.sb.from('order_extra_quotes').update(patch).eq('id', quoteId);
+      const { error } = await this.db().from('order_extra_quotes').update(patch).eq('id', quoteId);
       if (error) throw new BadRequestException(error.message);
       return this.fetchOneDb(quoteId);
     }
-    const mem = this.memQuotes.get(quoteId);
-    if (!mem) throw new NotFoundException('quote not found');
-    mem.status = to;
-    if (opts.setCustomerApprovedAt) mem.customerApprovedAt = now;
-    return mem;
   }
 
   private async getQuoteById(quoteId: string): Promise<ExtraQuoteRow> {
-    if (this.sb) return this.fetchOneDb(quoteId);
-    const m = this.memQuotes.get(quoteId);
-    if (!m) throw new NotFoundException('quote not found');
-    return m;
+    return this.fetchOneDb(quoteId);
   }
 
   private async fetchOneDb(quoteId: string): Promise<ExtraQuoteRow> {
-    if (!this.sb) throw new BadRequestException('Supabase 가 비활성화되어 견적 DB 조회 불가입니다.');
-    const { data: q, error } = await this.sb.from('order_extra_quotes').select('*').eq('id', quoteId).maybeSingle();
+    const sb = this.db();
+    const { data: q, error } = await sb.from('order_extra_quotes').select('*').eq('id', quoteId).maybeSingle();
     if (error) throw new BadRequestException(error.message);
     if (!q) throw new NotFoundException('quote not found');
-    const { data: items, error: ie } = await this.sb
+    const { data: items, error: ie } = await sb
       .from('order_extra_quote_items')
       .select('*')
       .eq('quote_id', quoteId);

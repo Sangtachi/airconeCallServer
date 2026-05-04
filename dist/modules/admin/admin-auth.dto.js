@@ -22,6 +22,16 @@ __decorate([
     __metadata("design:type", String)
 ], AdminLoginDto.prototype, "username", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({
+        required: false,
+        enum: ['admin', 'dispatch_admin', 'ops_admin', 'finance_admin', 'super_admin'],
+        description: 'JWT role 클레임. 미지정 시 username으로 추론하고 최종 기본값은 admin.',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AdminLoginDto.prototype, "role", void 0);
+__decorate([
     (0, swagger_1.ApiProperty)({ description: '.env ADMIN_BOOTSTRAP_PASSWORD 와 비교(dev 전용 가능)' }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MinLength)(1),

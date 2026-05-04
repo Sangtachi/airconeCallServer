@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmergencyLeadsAdminController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const admin_role_guard_1 = require("../../common/admin-role.guard");
 const admin_access_guard_1 = require("../admin/admin-access.guard");
 const patch_emergency_lead_admin_dto_1 = require("./dto/patch-emergency-lead-admin.dto");
 const list_emergency_leads_admin_query_dto_1 = require("./dto/list-emergency-leads-admin-query.dto");
@@ -37,6 +38,7 @@ let EmergencyLeadsAdminController = class EmergencyLeadsAdminController {
 exports.EmergencyLeadsAdminController = EmergencyLeadsAdminController;
 __decorate([
     (0, common_1.Get)(),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'ops_admin'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [list_emergency_leads_admin_query_dto_1.ListEmergencyLeadsAdminQueryDto]),
@@ -44,6 +46,7 @@ __decorate([
 ], EmergencyLeadsAdminController.prototype, "list", null);
 __decorate([
     (0, common_1.Patch)(':id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id', new common_1.ParseUUIDPipe({ version: '4' }))),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -52,9 +55,9 @@ __decorate([
 ], EmergencyLeadsAdminController.prototype, "patch", null);
 exports.EmergencyLeadsAdminController = EmergencyLeadsAdminController = __decorate([
     (0, swagger_1.ApiTags)('admin-emergency-leads'),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiSecurity)('admin-role'),
     (0, swagger_1.ApiHeader)({ name: 'x-admin-role', required: false }),
-    (0, common_1.UseGuards)(admin_access_guard_1.AdminAccessGuard),
+    (0, common_1.UseGuards)(admin_access_guard_1.AdminAccessGuard, admin_role_guard_1.AdminRoleGuard),
     (0, common_1.Controller)('admin/emergency-leads'),
     __metadata("design:paramtypes", [emergency_leads_service_1.EmergencyLeadsService])
 ], EmergencyLeadsAdminController);

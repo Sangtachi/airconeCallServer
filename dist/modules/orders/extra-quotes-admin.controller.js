@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ExtraQuotesAdminController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const admin_role_guard_1 = require("../../common/admin-role.guard");
 const admin_access_guard_1 = require("../admin/admin-access.guard");
 const extra_quotes_service_1 = require("./extra-quotes.service");
 let ExtraQuotesAdminController = class ExtraQuotesAdminController {
@@ -40,8 +41,9 @@ let ExtraQuotesAdminController = class ExtraQuotesAdminController {
 exports.ExtraQuotesAdminController = ExtraQuotesAdminController;
 __decorate([
     (0, common_1.Get)(),
-    (0, swagger_1.ApiOperation)({ summary: '추가금 견적 목록(Supabase 또는 메모리)' }),
+    (0, swagger_1.ApiOperation)({ summary: '추가금 견적 목록(Supabase)' }),
     (0, swagger_1.ApiQuery)({ name: 'orderId', required: false }),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'ops_admin', 'finance_admin'),
     __param(0, (0, common_1.Query)('orderId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -50,6 +52,7 @@ __decorate([
 __decorate([
     (0, common_1.Post)(':quoteId/customer-approved'),
     (0, swagger_1.ApiOperation)({ summary: '고객 승인 처리(별도 문자/전화 검증 미포함 MVP)' }),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'ops_admin', 'finance_admin'),
     __param(0, (0, common_1.Param)('quoteId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -57,6 +60,7 @@ __decorate([
 ], ExtraQuotesAdminController.prototype, "approve", null);
 __decorate([
     (0, common_1.Post)(':quoteId/reject'),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'ops_admin', 'finance_admin'),
     __param(0, (0, common_1.Param)('quoteId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -64,6 +68,7 @@ __decorate([
 ], ExtraQuotesAdminController.prototype, "reject", null);
 __decorate([
     (0, common_1.Post)(':quoteId/cancel'),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'ops_admin', 'finance_admin'),
     __param(0, (0, common_1.Param)('quoteId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -72,6 +77,7 @@ __decorate([
 __decorate([
     (0, common_1.Post)(':quoteId/mock-record-payment'),
     (0, swagger_1.ApiOperation)({ summary: '모의 추가 결제 행 작성 + 견적 paid' }),
+    (0, admin_role_guard_1.AdminRoles)('finance_admin'),
     __param(0, (0, common_1.Param)('quoteId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -79,9 +85,13 @@ __decorate([
 ], ExtraQuotesAdminController.prototype, "mockPay", null);
 exports.ExtraQuotesAdminController = ExtraQuotesAdminController = __decorate([
     (0, swagger_1.ApiTags)('admin-extra-quotes'),
-    (0, swagger_1.ApiBearerAuth)(),
-    (0, swagger_1.ApiHeader)({ name: 'x-admin-role', required: false, description: '레거시(ADMIN_LEGACY_X_ADMIN_ROLE=1 일 때만)' }),
-    (0, common_1.UseGuards)(admin_access_guard_1.AdminAccessGuard),
+    (0, swagger_1.ApiSecurity)('admin-role'),
+    (0, swagger_1.ApiHeader)({
+        name: 'x-admin-role',
+        required: false,
+        description: 'role-only 모드: dispatch_admin | ops_admin | finance_admin | super_admin',
+    }),
+    (0, common_1.UseGuards)(admin_access_guard_1.AdminAccessGuard, admin_role_guard_1.AdminRoleGuard),
     (0, common_1.Controller)('admin/extra-quotes'),
     __metadata("design:paramtypes", [extra_quotes_service_1.ExtraQuotesService])
 ], ExtraQuotesAdminController);

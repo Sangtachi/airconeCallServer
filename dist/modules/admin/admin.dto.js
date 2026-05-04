@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ReviewOnboardingDto = exports.UpdateCouponDto = exports.CreateCouponDto = exports.UpdateSettlementStatusDto = exports.ConfirmSettlementDto = exports.CancelPaymentDto = exports.UpdateOnboardingDto = exports.UpdateTechnicianDto = exports.UpdateBookingDto = exports.CreateBookingDto = exports.UpdateMemberDto = exports.CreateMemberDto = exports.CreateTechnicianDto = exports.UpdateBookingStatusDto = exports.AssignTechnicianDto = void 0;
+exports.CreateAdminInviteDto = exports.ReviewOnboardingDto = exports.UpdateCouponDto = exports.CreateCouponDto = exports.UpdateSettlementStatusDto = exports.ConfirmSettlementDto = exports.CancelPaymentDto = exports.UpdateOnboardingDto = exports.UpdateTechnicianDto = exports.UpdateBookingDto = exports.CreateBookingDto = exports.UpdateSellerDto = exports.UpdateMemberDto = exports.CreateSellerDto = exports.RegisterSellerDto = exports.MemberSessionDto = exports.RegisterMemberDto = exports.CreateMemberDto = exports.CreateTechnicianDto = exports.UpdateBookingStatusDto = exports.AssignTechnicianDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 class AssignTechnicianDto {
@@ -65,6 +65,13 @@ __decorate([
     __metadata("design:type", String)
 ], CreateTechnicianDto.prototype, "phone", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ required: false, description: '관리자 생성 시 기사 초기 비밀번호' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(5),
+    __metadata("design:type", String)
+], CreateTechnicianDto.prototype, "password", void 0);
+__decorate([
     (0, swagger_1.ApiProperty)({ required: false }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -83,6 +90,149 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateMemberDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, description: '관리자 생성 시 초기 비밀번호' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(5),
+    __metadata("design:type", String)
+], CreateMemberDto.prototype, "password", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, enum: ['customer', 'admin', 'super_admin'] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['customer', 'admin', 'super_admin']),
+    __metadata("design:type", String)
+], CreateMemberDto.prototype, "role", void 0);
+class RegisterMemberDto {
+}
+exports.RegisterMemberDto = RegisterMemberDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '전화번호. 숫자/하이픈 모두 허용' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterMemberDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '임시 자체 인증용 비밀번호. 추후 SMS/Supabase Auth로 교체' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(5),
+    __metadata("design:type", String)
+], RegisterMemberDto.prototype, "password", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterMemberDto.prototype, "name", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], RegisterMemberDto.prototype, "marketingConsent", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, description: '긴급 리드 또는 주문 참조값' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterMemberDto.prototype, "bookingRef", void 0);
+class MemberSessionDto {
+}
+exports.MemberSessionDto = MemberSessionDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '전화번호. 숫자/하이픈 모두 허용' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], MemberSessionDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '비밀번호' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(5),
+    __metadata("design:type", String)
+], MemberSessionDto.prototype, "password", void 0);
+class RegisterSellerDto {
+}
+exports.RegisterSellerDto = RegisterSellerDto;
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterSellerDto.prototype, "ownerName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '전화번호. 숫자/하이픈 모두 허용' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterSellerDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '임시 자체 인증용 비밀번호. 추후 SMS/Supabase Auth로 교체' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(5),
+    __metadata("design:type", String)
+], RegisterSellerDto.prototype, "password", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterSellerDto.prototype, "companyName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterSellerDto.prototype, "businessNumber", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterSellerDto.prototype, "productCategory", void 0);
+class CreateSellerDto {
+}
+exports.CreateSellerDto = CreateSellerDto;
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateSellerDto.prototype, "ownerName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '전화번호. 숫자/하이픈 모두 허용' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateSellerDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '초기 비밀번호' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(5),
+    __metadata("design:type", String)
+], CreateSellerDto.prototype, "password", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateSellerDto.prototype, "companyName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateSellerDto.prototype, "businessNumber", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateSellerDto.prototype, "productCategory", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, enum: ['pending', 'reviewing', 'approved', 'rejected', 'suspended'] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['pending', 'reviewing', 'approved', 'rejected', 'suspended']),
+    __metadata("design:type", String)
+], CreateSellerDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateSellerDto.prototype, "memo", void 0);
 class UpdateMemberDto {
 }
 exports.UpdateMemberDto = UpdateMemberDto;
@@ -105,6 +255,19 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateMemberDto.prototype, "status", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ required: false, enum: ['customer', 'admin', 'super_admin'] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['customer', 'admin', 'super_admin']),
+    __metadata("design:type", String)
+], UpdateMemberDto.prototype, "role", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, description: '비워두면 변경하지 않음' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(5),
+    __metadata("design:type", String)
+], UpdateMemberDto.prototype, "password", void 0);
+__decorate([
     (0, swagger_1.ApiProperty)({ required: false }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),
@@ -116,6 +279,58 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateMemberDto.prototype, "memo", void 0);
+class UpdateSellerDto {
+}
+exports.UpdateSellerDto = UpdateSellerDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateSellerDto.prototype, "ownerName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateSellerDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, description: '비워두면 변경하지 않음' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(5),
+    __metadata("design:type", String)
+], UpdateSellerDto.prototype, "password", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateSellerDto.prototype, "companyName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateSellerDto.prototype, "businessNumber", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateSellerDto.prototype, "productCategory", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, enum: ['pending', 'reviewing', 'approved', 'rejected', 'suspended'] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['pending', 'reviewing', 'approved', 'rejected', 'suspended']),
+    __metadata("design:type", String)
+], UpdateSellerDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateSellerDto.prototype, "memo", void 0);
 class CreateBookingDto {
 }
 exports.CreateBookingDto = CreateBookingDto;
@@ -187,6 +402,13 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateTechnicianDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, description: '비워두면 변경하지 않음' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(5),
+    __metadata("design:type", String)
+], UpdateTechnicianDto.prototype, "password", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ required: false }),
     (0, class_validator_1.IsOptional)(),
@@ -294,4 +516,24 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], ReviewOnboardingDto.prototype, "rejectReason", void 0);
+class CreateAdminInviteDto {
+}
+exports.CreateAdminInviteDto = CreateAdminInviteDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminInviteDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAdminInviteDto.prototype, "email", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: ['dispatch_admin', 'ops_admin', 'finance_admin', 'super_admin'] }),
+    (0, class_validator_1.IsIn)(['dispatch_admin', 'ops_admin', 'finance_admin', 'super_admin']),
+    __metadata("design:type", String)
+], CreateAdminInviteDto.prototype, "role", void 0);
 //# sourceMappingURL=admin.dto.js.map

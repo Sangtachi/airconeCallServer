@@ -1,44 +1,104 @@
 const opts = (pairs) => pairs.map(([v, l]) => ({ value: v, label: l || v }));
 
-const tabs = [
-  {
-    id: 'members',
-    name: '회원관리',
+const memberStatusOptions = opts([['active', '활성'], ['inactive', '비활성'], ['banned', '차단']]);
+const sellerStatusOptions = opts([['pending', '대기'], ['reviewing', '검토중'], ['approved', '승인'], ['rejected', '반려'], ['suspended', '정지']]);
+const technicianStatusOptions = opts([['pending', '대기'], ['reviewing', '검토중'], ['approved', '승인'], ['rejected', '반려'], ['suspended', '정지']]);
+
+const accountViews = {
+  customers: {
+    id: 'customers',
+    name: '회원',
     list: '/api/admin/members',
     create: '/api/admin/members',
+    filterRows: (items) => items.filter((r) => r.role === 'customer'),
+    createDefaults: { role: 'customer' },
     formCreate: [
       { key: 'name', label: '이름', type: 'text', required: true },
       { key: 'phone', label: '전화번호', type: 'text', required: true },
+      { key: 'password', label: '초기 비밀번호', type: 'password', required: true, minLength: 5 },
     ],
     formEdit: [
       { key: 'name', label: '이름', type: 'text' },
       { key: 'phone', label: '전화번호', type: 'text' },
-      { key: 'status', label: '상태', type: 'select', options: opts([['active', '활성'], ['inactive', '비활성'], ['banned', '차단']]) },
+      { key: 'password', label: '비밀번호 변경(비우면 유지)', type: 'password', minLength: 5 },
+      { key: 'status', label: '상태', type: 'select', options: memberStatusOptions },
       { key: 'marketingConsent', label: '마케팅 수신 동의', type: 'checkbox' },
       { key: 'memo', label: '메모', type: 'textarea' },
     ],
   },
-  {
+  sellers: {
+    id: 'sellers',
+    name: '판매자',
+    list: '/api/admin/sellers',
+    create: '/api/admin/sellers',
+    formCreate: [
+      { key: 'ownerName', label: '담당자명', type: 'text', required: true },
+      { key: 'phone', label: '전화번호', type: 'text', required: true },
+      { key: 'password', label: '초기 비밀번호', type: 'password', required: true, minLength: 5 },
+      { key: 'companyName', label: '상호명', type: 'text', required: true },
+      { key: 'businessNumber', label: '사업자번호', type: 'text' },
+      { key: 'productCategory', label: '취급 품목', type: 'text' },
+      { key: 'status', label: '상태', type: 'select', options: opts([['approved', '승인'], ['pending', '대기'], ['reviewing', '검토중'], ['rejected', '반려'], ['suspended', '정지']]) },
+      { key: 'memo', label: '메모', type: 'textarea' },
+    ],
+    formEdit: [
+      { key: 'ownerName', label: '담당자명', type: 'text' },
+      { key: 'phone', label: '전화번호', type: 'text' },
+      { key: 'password', label: '비밀번호 변경(비우면 유지)', type: 'password', minLength: 5 },
+      { key: 'companyName', label: '상호명', type: 'text' },
+      { key: 'businessNumber', label: '사업자번호', type: 'text' },
+      { key: 'productCategory', label: '취급 품목', type: 'text' },
+      { key: 'status', label: '상태', type: 'select', options: sellerStatusOptions },
+      { key: 'memo', label: '메모', type: 'textarea' },
+    ],
+  },
+  technicians: {
     id: 'technicians',
-    name: '기사관리',
+    name: '기사',
     list: '/api/admin/technicians',
     create: '/api/admin/technicians',
     formCreate: [
       { key: 'name', label: '이름', type: 'text', required: true },
       { key: 'phone', label: '전화번호', type: 'text', required: true },
-      { key: 'baseRegion', label: '활동 지역', type: 'text', required: false },
+      { key: 'password', label: '초기 비밀번호', type: 'password', required: true, minLength: 5 },
+      { key: 'baseRegion', label: '활동 지역', type: 'text' },
     ],
     formEdit: [
       { key: 'name', label: '이름', type: 'text' },
       { key: 'phone', label: '전화번호', type: 'text' },
+      { key: 'password', label: '비밀번호 변경(비우면 유지)', type: 'password', minLength: 5 },
       { key: 'baseRegion', label: '활동 지역', type: 'text' },
-      {
-        key: 'status',
-        label: '상태',
-        type: 'select',
-        options: opts([['pending', '대기'], ['approved', '승인'], ['rejected', '반려'], ['suspended', '정지']]),
-      },
+      { key: 'status', label: '상태', type: 'select', options: technicianStatusOptions },
     ],
+  },
+  admins: {
+    id: 'admins',
+    name: '관리자',
+    list: '/api/admin/members',
+    create: '/api/admin/members',
+    filterRows: (items) => items.filter((r) => r.role === 'admin' || r.role === 'super_admin'),
+    formCreate: [
+      { key: 'name', label: '이름', type: 'text', required: true },
+      { key: 'phone', label: '전화번호', type: 'text', required: true },
+      { key: 'password', label: '초기 비밀번호', type: 'password', required: true, minLength: 5 },
+      { key: 'role', label: '권한', type: 'select', options: opts([['admin', '관리자'], ['super_admin', '슈퍼관리자']]) },
+    ],
+    formEdit: [
+      { key: 'name', label: '이름', type: 'text' },
+      { key: 'phone', label: '전화번호', type: 'text' },
+      { key: 'password', label: '비밀번호 변경(비우면 유지)', type: 'password', minLength: 5 },
+      { key: 'role', label: '권한', type: 'select', options: opts([['admin', '관리자'], ['super_admin', '슈퍼관리자']]) },
+      { key: 'status', label: '상태', type: 'select', options: memberStatusOptions },
+      { key: 'memo', label: '메모', type: 'textarea' },
+    ],
+  },
+};
+
+const tabs = [
+  {
+    id: 'accounts',
+    name: '전체 회원관리',
+    accountHub: true,
   },
   {
     id: 'onboarding',
@@ -53,31 +113,18 @@ const tabs = [
   },
   {
     id: 'bookings',
-    name: '접수/배차',
-    list: '/api/admin/bookings',
+    name: '주문/배차',
+    list: '/api/admin/customer-orders',
     create: '/api/admin/bookings',
+    patchBase: '/api/admin/customer-orders',
+    bulkDelete: false,
+    selectable: false,
     formCreate: [
       { key: 'customerName', label: '고객명', type: 'text', required: true },
       { key: 'customerPhone', label: '고객 전화', type: 'text', required: true },
       { key: 'region', label: '지역', type: 'text', required: true },
-      { key: 'symptomCode', label: '증상 코드', type: 'text', required: true },
+      { key: 'symptomCode', label: '접수 유형 코드', type: 'text', required: true },
     ],
-    formEdit: [
-      { key: 'customerName', label: '고객명', type: 'text' },
-      { key: 'customerPhone', label: '고객 전화', type: 'text' },
-      { key: 'region', label: '지역', type: 'text' },
-      { key: 'symptomCode', label: '증상 코드', type: 'text' },
-      { key: 'adminMemo', label: '관리자 메모', type: 'textarea' },
-    ],
-  },
-  {
-    id: 'install_orders',
-    name: '설치주문(목업)',
-    list: '/api/admin/customer-orders',
-    patchBase: '/api/admin/customer-orders',
-    bulkDelete: false,
-    selectable: false,
-    formCreate: null,
     formEdit: [
       {
         key: 'orderStatus',
@@ -85,18 +132,24 @@ const tabs = [
         type: 'select',
         options: opts([
           ['created', '생성(미결제)'],
+          ['payment_pending', '결제대기'],
           ['paid', '결제표시만'],
           ['matching', '매칭중'],
           ['assigned', '배정'],
           ['accepted', '수락'],
           ['on_the_way', '출발'],
+          ['arrived', '도착'],
+          ['diagnosed', '진단'],
+          ['extra_payment_pending', '추가금대기'],
           ['working', '작업중'],
           ['completed', '완료'],
+          ['settlement_pending', '정산대기'],
+          ['settled', '정산완료'],
           ['cancelled', '취소'],
           ['refunded', '환불'],
         ]),
       },
-      { key: 'assignedTechnicianId', label: '기사 ID(비우면 미배정)', type: 'text' },
+      { key: 'assignedTechnicianId', label: '기사 UUID(비우면 미배정)', type: 'text' },
       { key: 'adminMemo', label: '관리자 메모', type: 'textarea' },
     ],
   },
@@ -175,8 +228,19 @@ const tabs = [
     name: '설치·청소상품(B)',
     list: '/api/admin/service-products',
     listSuffix: '?includeInactive=1',
+    create: '/api/admin/service-products',
     patchBase: '/api/admin/service-products',
-    formCreate: null,
+    formCreate: [
+      { key: 'categoryId', label: '카테고리 UUID', type: 'text', required: true },
+      { key: 'name', label: '상품명', type: 'text', required: true },
+      { key: 'code', label: '코드', type: 'text', required: true },
+      { key: 'serviceType', label: '서비스 유형', type: 'select', options: opts([['install', '설치'], ['cleaning', '청소']]) },
+      { key: 'airconType', label: '에어컨 유형', type: 'select', options: opts([['wall', '벽걸이'], ['stand', '스탠드'], ['two_in_one', '투인원'], ['system', '시스템']]) },
+      { key: 'basePrice', label: '예약 설치 금액', type: 'number', required: true },
+      { key: 'sameDayPrice', label: '당일 설치 금액', type: 'number', required: true },
+      { key: 'sameDayExtraPrice', label: '당일 추가금', type: 'number', required: true },
+      { key: 'description', label: '설명', type: 'textarea' },
+    ],
     formEdit: [
       { key: 'name', label: '상품명', type: 'text' },
       { key: 'basePrice', label: '예약 설치 금액', type: 'number' },
@@ -215,7 +279,8 @@ const tabs = [
   },
 ];
 
-let active = tabs[0];
+let active = tabs.find((t) => t.id === 'accounts') || tabs[0];
+let accountSection = 'customers';
 let rows = [];
 let selected = null;
 let modalState = { mode: 'create', record: null };
@@ -226,12 +291,83 @@ const $list = document.getElementById('list');
 const $detail = document.getElementById('detail');
 const $actions = document.getElementById('actions');
 const $toolbar = document.getElementById('toolbar');
-const $role = document.getElementById('role');
+const $sessionRole = document.getElementById('sessionRole');
+const $roleSelect = document.getElementById('roleSelect');
+const $logoutBtn = document.getElementById('logoutBtn');
 const $modalRoot = document.getElementById('modalRoot');
 const $modalTitle = document.getElementById('modalTitle');
 const $modalForm = document.getElementById('modalForm');
 const $modalCancel = document.getElementById('modalCancel');
 const $modalBackdrop = document.getElementById('modalBackdrop');
+const ALLOWED_ROLES = ['dispatch_admin', 'ops_admin', 'finance_admin', 'super_admin'];
+const DISPATCH_READONLY_TABS = new Set(['bookings', 'emergency_leads', 'settlements']);
+const DISPATCH_VISIBLE_TABS = new Set(['settlements', 'emergency_leads', 'bookings']);
+let activeRole = (() => {
+  try {
+    const q = new URL(location.href).searchParams.get('role');
+    return ALLOWED_ROLES.includes(q) ? q : 'super_admin';
+  } catch {
+    return 'super_admin';
+  }
+})();
+
+function currentRole() {
+  return activeRole;
+}
+
+function isReadOnlyForActiveTab() {
+  return currentRole() === 'dispatch_admin' && DISPATCH_READONLY_TABS.has(active.id);
+}
+
+function getVisibleTabs() {
+  if (currentRole() !== 'dispatch_admin') return tabs;
+  return tabs.filter((t) => DISPATCH_VISIBLE_TABS.has(t.id));
+}
+
+function currentAccountView() {
+  return accountViews[accountSection] || accountViews.customers;
+}
+
+function activeConfig() {
+  return active.accountHub ? currentAccountView() : active;
+}
+
+/** 랜딩 등에서 `/admin/index.html?tab=onboarding` 형태로 진입 */
+function readTabFromUrl() {
+  try {
+    const u = new URL(location.href);
+    const q = u.searchParams.get('tab');
+    if (q) return String(q).trim();
+    const hash = u.hash.replace(/^#/, '');
+    if (hash.startsWith('tab=')) return hash.slice(4).trim();
+    if (hash && !hash.includes('=')) return hash.trim();
+  } catch {
+    /* ignore */
+  }
+  return '';
+}
+
+function readAccountSectionFromUrl() {
+  try {
+    const q = new URL(location.href).searchParams.get('section');
+    return accountViews[q] ? q : '';
+  } catch {
+    return '';
+  }
+}
+
+function syncTabToUrl() {
+  try {
+    const u = new URL(location.href);
+    u.searchParams.set('tab', active.id);
+    if (active.accountHub) u.searchParams.set('section', accountSection);
+    else u.searchParams.delete('section');
+    u.hash = '';
+    history.replaceState(null, '', `${u.pathname}?${u.searchParams.toString()}`);
+  } catch {
+    /* ignore */
+  }
+}
 
 /** Nest 와 같은 호스트면 빈 문자열. Vite 등에서 열었다면 index.html 에서 window.__ADMIN_API_BASE__ 설정 */
 function apiUrl(path) {
@@ -241,7 +377,7 @@ function apiUrl(path) {
 }
 
 function headers(extra = {}) {
-  return { 'Content-Type': 'application/json', 'x-admin-role': $role.value, ...extra };
+  return { 'Content-Type': 'application/json', 'x-admin-role': currentRole(), ...extra };
 }
 
 async function req(url, opt = {}) {
@@ -273,8 +409,8 @@ function formatDetailPanel(row) {
   }
   if (active.id === 'emergency_leads') {
     const lines = [];
-    if (row.convertedBookingId) lines.push(`접수/배차(booking): ${row.convertedBookingId}`);
-    if (row.convertedOrderId) lines.push(`설치 주문 초안(order): ${row.convertedOrderId}`);
+    if (row.convertedOrderId) lines.push(`전환 주문(order): ${row.convertedOrderId}`);
+    if (row.convertedBookingId) lines.push(`호환 필드(convertedBookingId): ${row.convertedBookingId}`);
     if (lines.length) text += `\n---\n${lines.join('\n')}`;
   }
   return text;
@@ -288,15 +424,34 @@ function formatCell(v) {
 }
 
 function renderTabs() {
+  const visibleTabs = getVisibleTabs();
+  if (!visibleTabs.some((t) => t.id === active.id)) {
+    active = visibleTabs[0] || tabs[0];
+  }
   $tabs.innerHTML = tabs
+    .filter((t) => !t.shortcutOnly && visibleTabs.some((v) => v.id === t.id))
     .map((t) => `<button class="tab-btn ${t.id === active.id ? 'active' : ''}" data-id="${t.id}">${t.name}</button>`)
     .join('');
   $tabs.querySelectorAll('button').forEach((btn) => {
     btn.onclick = () => {
-      active = tabs.find((t) => t.id === btn.dataset.id);
+      active = visibleTabs.find((t) => t.id === btn.dataset.id) || active;
       load();
     };
   });
+}
+
+function renderAccountSubtabs() {
+  const entries = [
+    ['customers', '회원'],
+    ['sellers', '판매자'],
+    ['technicians', '기사'],
+    ['admins', '관리자'],
+  ];
+  return `
+    <div class="subtabs" role="tablist" aria-label="회원 유형">
+      ${entries.map(([id, label]) => `<button type="button" class="subtab ${accountSection === id ? 'active' : ''}" data-section="${id}">${label}</button>`).join('')}
+    </div>
+  `;
 }
 
 /** @param {typeof tabs[number]} tab */
@@ -348,7 +503,14 @@ function wireTableHandlers() {
       e.stopPropagation();
       const id = btn.dataset.id;
       const row = rows.find((r) => r.id === id);
-      if (row) openModal('edit', row);
+      if (!row) return;
+      if (isReadOnlyForActiveTab()) {
+        selected = row;
+        $detail.textContent = formatDetailPanel(selected);
+        renderActions();
+        return;
+      }
+      openModal('edit', row);
     });
   });
   $list.querySelectorAll('tr.data-row').forEach((tr) => {
@@ -365,13 +527,23 @@ function wireTableHandlers() {
 
 function renderToolbar() {
   const parts = [];
-  if (active.formCreate) parts.push(`<button class="primary" type="button" id="btnCreate">생성</button>`);
-  if (active.bulkDelete !== false) {
+  const cfg = activeConfig();
+  const readOnly = isReadOnlyForActiveTab();
+  if (active.accountHub) parts.push(renderAccountSubtabs());
+  if (cfg.formCreate && !readOnly) parts.push(`<button class="primary" type="button" id="btnCreate">생성</button>`);
+  if (cfg.bulkDelete !== false && !readOnly) {
     parts.push(`<button type="button" class="danger" id="btnDeleteChecked" title="체크한 행 삭제">선택 삭제</button>`);
   }
-  if (active.id === 'bookings') parts.push(`<button type="button" id="btnRefresh">리프레시</button>`);
+  if (cfg.id === 'bookings') parts.push(`<button type="button" id="btnRefresh">리프레시</button>`);
   $toolbar.className = 'toolbar';
   $toolbar.innerHTML = parts.join('');
+  $toolbar.querySelectorAll('.subtab').forEach((btn) => {
+    btn.onclick = () => {
+      if (!accountViews[btn.dataset.section]) return;
+      accountSection = btn.dataset.section;
+      load();
+    };
+  });
   const c = document.getElementById('btnCreate');
   if (c) c.onclick = () => openModal('create', null);
   const del = document.getElementById('btnDeleteChecked');
@@ -381,44 +553,34 @@ function renderToolbar() {
 }
 
 function renderActions() {
+  const cfg = activeConfig();
+  const activeId = cfg.id;
   $actions.className = 'actions';
   if (!selected) {
     $actions.innerHTML = '<span class="muted">행을 선택하면 액션 버튼이 나옵니다.</span>';
     return;
   }
-  if (active.id === 'members') {
+  if (isReadOnlyForActiveTab()) {
+    $actions.innerHTML = '<span class="muted">기사 role은 이 탭에서 조회만 가능합니다.</span>';
+    return;
+  }
+  if (activeId === 'customers' || activeId === 'admins') {
     $actions.innerHTML = `<button data-s="active">활성</button><button data-s="inactive">비활성</button><button data-s="banned">차단</button>`;
-    $actions.querySelectorAll('button').forEach((b) => (b.onclick = () => patch(`${active.list}/${selected.id}`, { status: b.dataset.s })));
-  } else if (active.id === 'technicians') {
+    $actions.querySelectorAll('button').forEach((b) => (b.onclick = () => patch(`${cfg.list}/${selected.id}`, { status: b.dataset.s })));
+  } else if (activeId === 'sellers') {
+    $actions.innerHTML = `<button data-s="approved">승인</button><button data-s="reviewing">검토중</button><button data-s="suspended">정지</button><button data-s="rejected">반려</button>`;
+    $actions.querySelectorAll('button').forEach((b) => (b.onclick = () => patch(`${cfg.list}/${selected.id}`, { status: b.dataset.s })));
+  } else if (activeId === 'technicians') {
     $actions.innerHTML = `<button data-s="approved">승인</button><button data-s="suspended">정지</button>`;
-    $actions.querySelectorAll('button').forEach((b) => (b.onclick = () => patch(`${active.list}/${selected.id}`, { status: b.dataset.s })));
-  } else if (active.id === 'onboarding') {
+    $actions.querySelectorAll('button').forEach((b) => (b.onclick = () => patch(`${cfg.list}/${selected.id}`, { status: b.dataset.s })));
+  } else if (activeId === 'onboarding') {
     $actions.innerHTML = `<button data-s="reviewing">검토중</button><button data-s="approved">승인</button><button data-s="rejected">반려</button>`;
     $actions
       .querySelectorAll('button')
       .forEach((b) => (b.onclick = () => post(`/api/admin/technician-onboarding/${selected.id}/review`, { status: b.dataset.s })));
-  } else if (active.id === 'bookings') {
-    $actions.innerHTML = `<button id="toMatching">matching</button><button id="assign">기사배정 t_1</button><button id="unassign">배정해제</button>`;
-    document.getElementById('toMatching').onclick = () => patch(`/api/admin/bookings/${selected.id}/status`, { toStatus: 'matching' });
-    document.getElementById('assign').onclick = () => post(`/api/admin/bookings/${selected.id}/assign-technician`, { technicianId: 't_1' });
-    document.getElementById('unassign').onclick = () => post(`/api/admin/bookings/${selected.id}/unassign-technician`, {});
-  } else if (active.id === 'rewards') {
-    $actions.innerHTML = `<button data-s="active">활성</button><button data-s="cancelled">취소</button>`;
-    $actions
-      .querySelectorAll('button')
-      .forEach((b) => (b.onclick = () => patch(`/api/admin/coupons/${selected.id}`, { status: b.dataset.s })));
-  } else if (active.id === 'settlements') {
-    $actions.innerHTML = `<button>정산확정</button><button>지급완료</button><button>보류</button>`;
-    const [a, b, c] = $actions.querySelectorAll('button');
-    a.onclick = () => post(`/api/admin/settlements/${selected.id}/confirm`, { adjustmentAmount: 0 });
-    b.onclick = () => patch(`/api/admin/settlements/${selected.id}/status`, { status: 'paid' });
-    c.onclick = () => patch(`/api/admin/settlements/${selected.id}/status`, { status: 'held' });
-  } else if (active.id === 'emergency_leads') {
-    $actions.innerHTML =
-      '<span class="muted">행 선택 후 ID 또는 행 클릭 → 매칭상태만 수정합니다. 공개 접수는 고객 폼에서 저장됩니다.</span>';
-  } else if (active.id === 'install_orders') {
-    $actions.innerHTML = `<button type="button" id="iomMockPay">목업결제 확정</button><button type="button" id="iomMatch">matching</button><button type="button" id="iomAssign">assign t_1</button><button type="button" id="iomDone">completed</button>`;
-    document.getElementById('iomMockPay').onclick = async () => {
+  } else if (activeId === 'bookings') {
+    $actions.innerHTML = `<button type="button" id="orderMockPay">테스트결제 확정</button><button id="toMatching">matching</button><button id="assign">기사 UUID 배정</button><button id="unassign">배정해제</button><button id="toDone">completed</button>`;
+    document.getElementById('orderMockPay').onclick = async () => {
       try {
         await req(`/api/payments/mock-confirm`, { method: 'POST', body: JSON.stringify({ orderId: selected.id }) });
         await load();
@@ -426,13 +588,32 @@ function renderActions() {
         alert(err.message);
       }
     };
-    document.getElementById('iomMatch').onclick = () =>
+    document.getElementById('toMatching').onclick = () =>
       patch(`/api/admin/customer-orders/${selected.id}`, { orderStatus: 'matching' });
-    document.getElementById('iomAssign').onclick = () =>
-      patch(`/api/admin/customer-orders/${selected.id}`, { orderStatus: 'assigned', assignedTechnicianId: 't_1' });
-    document.getElementById('iomDone').onclick = () =>
+    document.getElementById('assign').onclick = () => {
+      const technicianId = prompt('배정할 승인 기사 UUID를 입력하세요.', selected.assignedTechnicianId || '');
+      if (!technicianId) return;
+      patch(`/api/admin/customer-orders/${selected.id}`, { orderStatus: 'assigned', assignedTechnicianId: technicianId.trim() });
+    };
+    document.getElementById('unassign').onclick = () =>
+      patch(`/api/admin/customer-orders/${selected.id}`, { orderStatus: 'matching', assignedTechnicianId: null });
+    document.getElementById('toDone').onclick = () =>
       patch(`/api/admin/customer-orders/${selected.id}`, { orderStatus: 'completed' });
-  } else if (active.id === 'service_products' || active.id === 'service_addons') {
+  } else if (activeId === 'rewards') {
+    $actions.innerHTML = `<button data-s="active">활성</button><button data-s="cancelled">취소</button>`;
+    $actions
+      .querySelectorAll('button')
+      .forEach((b) => (b.onclick = () => patch(`/api/admin/coupons/${selected.id}`, { status: b.dataset.s })));
+  } else if (activeId === 'settlements') {
+    $actions.innerHTML = `<button>정산확정</button><button>지급완료</button><button>보류</button>`;
+    const [a, b, c] = $actions.querySelectorAll('button');
+    a.onclick = () => post(`/api/admin/settlements/${selected.id}/confirm`, { adjustmentAmount: 0 });
+    b.onclick = () => patch(`/api/admin/settlements/${selected.id}/status`, { status: 'paid' });
+    c.onclick = () => patch(`/api/admin/settlements/${selected.id}/status`, { status: 'held' });
+  } else if (activeId === 'emergency_leads') {
+    $actions.innerHTML =
+      '<span class="muted">행 선택 후 ID 또는 행 클릭 → 매칭상태만 수정합니다. 공개 접수는 고객 폼에서 저장됩니다.</span>';
+  } else if (activeId === 'service_products' || activeId === 'service_addons') {
     $actions.innerHTML =
       '<span class="muted">목록 행(ID) 클릭으로 가격을 수정합니다. 선택 삭제는 비활성 처리입니다.</span>';
   }
@@ -463,18 +644,21 @@ function buildFieldHtml(f, value) {
   }
   const min = f.min !== undefined ? ` min="${f.min}"` : '';
   const step = f.step !== undefined ? ` step="${f.step}"` : '';
+  const minLength = f.minLength !== undefined ? ` minlength="${f.minLength}"` : '';
   const req = f.required ? ' required' : '';
-  return `<label for="${id}">${escapeHtml(f.label)}<input type="${f.type}" id="${id}" name="${escapeHtml(f.key)}" value="${escapeHtml(String(v))}"${min}${step}${req} /></label>`;
+  return `<label for="${id}">${escapeHtml(f.label)}<input type="${f.type}" id="${id}" name="${escapeHtml(f.key)}" value="${escapeHtml(String(v))}"${min}${step}${minLength}${req} /></label>`;
 }
 
 function openModal(mode, record) {
-  const fields = mode === 'create' ? active.formCreate : active.formEdit;
+  const cfg = activeConfig();
+  const fields = mode === 'create' ? cfg.formCreate : cfg.formEdit;
   if (!fields || !fields.length) {
     alert(mode === 'create' ? '이 탭에서는 생성할 수 없습니다.' : '이 탭에서는 수정 폼이 없습니다.');
     return;
   }
   modalState = { mode, record };
-  $modalTitle.textContent = mode === 'create' ? `${active.name} — 새로 만들기` : `${active.name} — 수정 (${record.id})`;
+  const title = active.accountHub ? `${active.name} · ${cfg.name}` : active.name;
+  $modalTitle.textContent = mode === 'create' ? `${title} — 새로 만들기` : `${title} — 수정 (${record.id})`;
   $modalForm.innerHTML = fields
     .map((f) => buildFieldHtml(f, record && record[f.key] !== undefined ? record[f.key] : ''))
     .join('');
@@ -484,7 +668,8 @@ function openModal(mode, record) {
 
 async function onModalSubmit(e) {
   e.preventDefault();
-  const fields = modalState.mode === 'create' ? active.formCreate : active.formEdit;
+  const cfg = activeConfig();
+  const fields = modalState.mode === 'create' ? cfg.formCreate : cfg.formEdit;
   const fd = new FormData($modalForm);
   const body = {};
   for (const f of fields) {
@@ -511,21 +696,24 @@ async function onModalSubmit(e) {
         return;
       }
       if (raw === '') {
-        if (modalState.mode === 'edit' && active.id === 'install_orders' && f.key === 'assignedTechnicianId')
+        if (modalState.mode === 'edit' && active.id === 'bookings' && f.key === 'assignedTechnicianId')
           body[f.key] = null;
         continue;
       }
       body[f.key] = raw;
     }
   }
+  if (modalState.mode === 'create' && cfg.createDefaults) {
+    Object.assign(body, cfg.createDefaults);
+  }
   try {
     if (modalState.mode === 'create') {
-      await req(active.create, { method: 'POST', body: JSON.stringify(body) });
+      await req(cfg.create, { method: 'POST', body: JSON.stringify(body) });
     } else {
       const id = modalState.record.id;
-      const url = patchUrlFor(active, id);
+      const url = patchUrlFor(cfg, id);
       const patchBody = { ...body };
-      if (active.id === 'settlements') {
+      if (cfg.id === 'settlements') {
         await req(url, { method: 'PATCH', body: JSON.stringify({ status: patchBody.status }) });
       } else {
         await req(url, { method: 'PATCH', body: JSON.stringify(patchBody) });
@@ -545,9 +733,10 @@ async function onDeleteChecked() {
     return;
   }
   if (!confirm(`${ids.length}건을 삭제할까요?`)) return;
+  const cfg = activeConfig();
   const base =
-    active.patchBase ||
-    (active.id === 'onboarding' ? '/api/admin/technician-onboarding' : active.list);
+    cfg.patchBase ||
+    (cfg.id === 'onboarding' ? '/api/admin/technician-onboarding' : cfg.list);
   try {
     for (const id of ids) {
       await req(`${base}/${id}`, { method: 'DELETE' });
@@ -570,12 +759,14 @@ async function patch(url, body) {
 
 async function load() {
   renderTabs();
-  $title.textContent = active.name;
+  const cfg = activeConfig();
+  $title.textContent = active.accountHub ? `${active.name} · ${cfg.name}` : active.name;
   renderToolbar();
   try {
-    rows = await req(active.list + (active.listSuffix || ''));
+    const data = await req(cfg.list + (cfg.listSuffix || ''));
+    rows = typeof cfg.filterRows === 'function' ? cfg.filterRows(data) : data;
     selected = rows[0] || null;
-    $list.innerHTML = tableForRows(rows, active);
+    $list.innerHTML = tableForRows(rows, cfg);
     wireTableHandlers();
     if (selected) {
       const tr = $list.querySelector(`tr[data-id="${selected.id.replace(/"/g, '')}"]`);
@@ -583,10 +774,12 @@ async function load() {
     }
     $detail.textContent = formatDetailPanel(selected);
     renderActions();
+    syncTabToUrl();
   } catch (e) {
     $list.innerHTML = `<p class="muted">오류: ${escapeHtml(e.message)}</p>`;
     $detail.textContent = '';
     $actions.innerHTML = '';
+    syncTabToUrl();
   }
 }
 
@@ -594,5 +787,38 @@ $modalForm.addEventListener('submit', onModalSubmit);
 $modalCancel.onclick = closeModal;
 $modalBackdrop.onclick = closeModal;
 
-$role.onchange = load;
+if ($roleSelect) {
+  $roleSelect.value = activeRole;
+  $roleSelect.onchange = () => {
+    activeRole = ALLOWED_ROLES.includes($roleSelect.value) ? $roleSelect.value : 'super_admin';
+    if ($sessionRole) $sessionRole.textContent = `role: ${activeRole} · temporary`;
+    load();
+  };
+}
+if ($sessionRole) $sessionRole.textContent = `role: ${activeRole} · temporary`;
+if ($logoutBtn) {
+  $logoutBtn.onclick = () => {
+    if (window.AirconecallSession) window.AirconecallSession.logout('/index.html');
+    else {
+      sessionStorage.removeItem('aircone.session.v1');
+      location.href = '/index.html';
+    }
+  };
+}
+{
+  const want = readTabFromUrl();
+  if (want) {
+    const visibleTabs = getVisibleTabs();
+    const legacyAccountMap = { members: 'customers', sellers: 'sellers', technicians: 'technicians', admins: 'admins' };
+    if (legacyAccountMap[want]) {
+      active = visibleTabs.find((t) => t.id === 'accounts') || active;
+      accountSection = legacyAccountMap[want];
+    } else {
+      const found = visibleTabs.find((t) => t.id === want);
+      if (found) active = found;
+    }
+  }
+  const section = readAccountSectionFromUrl();
+  if (section) accountSection = section;
+}
 load();

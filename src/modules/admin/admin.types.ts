@@ -75,7 +75,7 @@ export interface Payment {
   status: PaymentStatus;
   /** payments.order_id (Supabase 적용 시) */
   orderId?: string;
-  dataSource?: 'memory' | 'database';
+  dataSource?: 'database';
 }
 
 export interface Settlement {
@@ -91,7 +91,7 @@ export interface Settlement {
   status: SettlementStatus;
   /** order_settlements.order_id */
   orderId?: string;
-  dataSource?: 'memory' | 'database';
+  dataSource?: 'database';
 }
 
 export interface Coupon {
@@ -111,4 +111,19 @@ export interface AdminLog {
   targetId: string;
   createdAt: string;
   payload?: unknown;
+}
+
+export interface AdminInvite {
+  id: string;
+  inviteToken: string;
+  role: 'dispatch_admin' | 'ops_admin' | 'finance_admin' | 'super_admin';
+  email?: string | null;
+  phone?: string | null;
+  status: 'pending' | 'accepted' | 'expired' | 'cancelled';
+  invitedBy: string;
+  acceptedBy?: string | null;
+  expiresAt: string;
+  acceptedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

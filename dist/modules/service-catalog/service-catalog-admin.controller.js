@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ServiceCatalogAdminAddonsController = exports.ServiceCatalogAdminProductsController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const admin_role_guard_1 = require("../../common/admin-role.guard");
 const admin_access_guard_1 = require("../admin/admin-access.guard");
 const catalog_admin_dto_1 = require("./catalog-admin.dto");
 const service_catalog_service_1 = require("./service-catalog.service");
@@ -39,6 +40,7 @@ exports.ServiceCatalogAdminProductsController = ServiceCatalogAdminProductsContr
 __decorate([
     (0, common_1.Get)(),
     (0, swagger_1.ApiQuery)({ name: 'includeInactive', required: false }),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Query)('includeInactive')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -46,6 +48,7 @@ __decorate([
 ], ServiceCatalogAdminProductsController.prototype, "list", null);
 __decorate([
     (0, common_1.Post)(),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [catalog_admin_dto_1.CreateServiceProductDto]),
@@ -53,6 +56,7 @@ __decorate([
 ], ServiceCatalogAdminProductsController.prototype, "create", null);
 __decorate([
     (0, common_1.Patch)(':id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -61,6 +65,7 @@ __decorate([
 ], ServiceCatalogAdminProductsController.prototype, "patch", null);
 __decorate([
     (0, common_1.Delete)(':id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -68,9 +73,9 @@ __decorate([
 ], ServiceCatalogAdminProductsController.prototype, "remove", null);
 exports.ServiceCatalogAdminProductsController = ServiceCatalogAdminProductsController = __decorate([
     (0, swagger_1.ApiTags)('admin-service-catalog'),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiSecurity)('admin-role'),
     (0, swagger_1.ApiHeader)({ name: 'x-admin-role', required: false }),
-    (0, common_1.UseGuards)(admin_access_guard_1.AdminAccessGuard),
+    (0, common_1.UseGuards)(admin_access_guard_1.AdminAccessGuard, admin_role_guard_1.AdminRoleGuard),
     (0, common_1.Controller)('admin/service-products'),
     __metadata("design:paramtypes", [service_catalog_service_1.ServiceCatalogService])
 ], ServiceCatalogAdminProductsController);
@@ -95,6 +100,7 @@ exports.ServiceCatalogAdminAddonsController = ServiceCatalogAdminAddonsControlle
 __decorate([
     (0, common_1.Get)(),
     (0, swagger_1.ApiQuery)({ name: 'includeInactive', required: false }),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Query)('includeInactive')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -102,6 +108,7 @@ __decorate([
 ], ServiceCatalogAdminAddonsController.prototype, "list", null);
 __decorate([
     (0, common_1.Post)(),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [catalog_admin_dto_1.CreateServiceAddonDto]),
@@ -109,6 +116,7 @@ __decorate([
 ], ServiceCatalogAdminAddonsController.prototype, "create", null);
 __decorate([
     (0, common_1.Patch)(':id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -117,6 +125,7 @@ __decorate([
 ], ServiceCatalogAdminAddonsController.prototype, "patch", null);
 __decorate([
     (0, common_1.Delete)(':id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -124,9 +133,9 @@ __decorate([
 ], ServiceCatalogAdminAddonsController.prototype, "remove", null);
 exports.ServiceCatalogAdminAddonsController = ServiceCatalogAdminAddonsController = __decorate([
     (0, swagger_1.ApiTags)('admin-service-catalog'),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiSecurity)('admin-role'),
     (0, swagger_1.ApiHeader)({ name: 'x-admin-role', required: false }),
-    (0, common_1.UseGuards)(admin_access_guard_1.AdminAccessGuard),
+    (0, common_1.UseGuards)(admin_access_guard_1.AdminAccessGuard, admin_role_guard_1.AdminRoleGuard),
     (0, common_1.Controller)('admin/service-addons'),
     __metadata("design:paramtypes", [service_catalog_service_1.ServiceCatalogService])
 ], ServiceCatalogAdminAddonsController);

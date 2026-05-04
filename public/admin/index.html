@@ -7,30 +7,43 @@
     <script>
       window.__ADMIN_API_BASE__ = window.__ADMIN_API_BASE__ || '';
     </script>
-    <title>에어컨콜 관리자</title>
+    <title>Airconecall 관리자</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="mask-icon" href="/favicon.svg" color="#2563eb" />
     <link rel="stylesheet" href="/admin/styles.css" />
   </head>
   <body>
     <div class="app">
       <aside class="sidebar">
+        <a class="admin-brand" href="/index.html" aria-label="Airconecall 홈">
+          <img src="/branding/icon-mark.png" alt="" />
+          <span>Airconecall</span>
+        </a>
         <h1>관리자</h1>
         <nav id="tabs"></nav>
       </aside>
       <main class="content">
         <header class="top">
           <div>
-            <h2 id="title">회원관리</h2>
+            <h2 id="title">전체 회원관리</h2>
             <p class="muted">
-              x-admin-role 헤더 기반 임시 인증 · API 는 이 페이지와 같은 호스트(<code>Nest 기본 :4000</code>)를 씁니다. Vite 에서 여는 경우
-              <code>__ADMIN_API_BASE__</code>를 설정하세요.
+              Supabase 운영 데이터 기준 · 임시 role-only 모드(보안 인증 아님). API 는 이 페이지와 같은 호스트(<code>Nest 기본 :4000</code>)를 씁니다.
             </p>
           </div>
-          <label>Role
-            <select id="role">
-              <option value="admin">admin</option>
+          <div class="top-actions">
+            <a class="top-link" href="/index.html">홈화면</a>
+            <button class="top-link" id="logoutBtn" type="button">로그아웃</button>
+            <label class="muted" style="font-size:12px;">role</label>
+            <select id="roleSelect">
               <option value="super_admin">super_admin</option>
+              <option value="ops_admin">ops_admin</option>
+              <option value="dispatch_admin">dispatch_admin</option>
+              <option value="finance_admin">finance_admin</option>
             </select>
-          </label>
+            <span class="badge" id="sessionRole">temporary</span>
+          </div>
         </header>
         <section class="panel">
           <div id="toolbar"></div>
@@ -54,6 +67,7 @@
         </section>
       </main>
     </div>
+    <script src="/session.js"></script>
     <script src="/admin/app.js"></script>
   </body>
 </html>
