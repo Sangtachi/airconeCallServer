@@ -30,14 +30,18 @@ async function bootstrap() {
         'http://127.0.0.1:5173',
         'http://[::1]:5173',
     ];
+    const productionWebOrigins = [
+        'https://acnow.vercel.app',
+        'https://aircone-call.vercel.app',
+        'https://airconecall.vercel.app',
+    ];
     const staticAllowList = isProd && !localRelaxCors
-        ? envOrigins.length > 0
-            ? [...envOrigins]
-            : ['https://acnow.vercel.app']
+        ? [...new Set([...productionWebOrigins, ...envOrigins])]
         : [
             ...new Set([
                 ...localViteOrigins,
-                ...(envOrigins.length > 0 ? envOrigins : ['https://acnow.vercel.app']),
+                ...productionWebOrigins,
+                ...envOrigins,
             ]),
         ];
     const localhostOriginOk = (origin) => {
