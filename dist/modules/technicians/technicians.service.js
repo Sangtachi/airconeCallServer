@@ -48,6 +48,22 @@ function isMissingSupabaseRelation(error) {
     const message = error instanceof Error ? error.message : String(error ?? '');
     return /schema cache|could not find the table|relation .* does not exist/i.test(message);
 }
+function documentExtFromMime(mime) {
+    const normalized = String(mime ?? '').toLowerCase().split(';')[0].trim();
+    const map = {
+        'application/pdf': 'pdf',
+        'image/jpeg': 'jpg',
+        'image/jpg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/heic': 'heic',
+        'image/heif': 'heif',
+    };
+    return map[normalized] ?? 'bin';
+}
+function technicianDocumentsBucketName() {
+    return (process.env.SUPABASE_STORAGE_TECHNICIAN_DOCUMENTS_BUCKET ?? 'technician-documents').trim() || 'technician-documents';
+}
 function toAdminTechnicianBrief(e) {
     return {
         id: e.id,
@@ -56,6 +72,9 @@ function toAdminTechnicianBrief(e) {
         status: e.status,
         workStatus: e.workStatus,
         baseRegion: e.baseRegion ?? undefined,
+        bankName: e.bankName ?? undefined,
+        bankHolder: e.bankHolder ?? undefined,
+        bankVerificationStatus: e.bankVerificationStatus,
         feeRate: e.platformFeeRate,
         regions: e.regions,
         capabilities: e.capabilities,
@@ -86,6 +105,24 @@ let TechniciansService = TechniciansService_1 = class TechniciansService {
         }
         await this.hydrateFromDatabase();
         this.logger.log(`Technicians: Supabase 로드 ${this.byId.size}건`);
+    }
+    async presignDocumentUpload(dto) {
+        const sb = this.db();
+        const bucket = technicianDocumentsBucketName();
+        const ext = documentExtFromMime(dto.mimeType);
+        const path = `onboarding/${dto.documentType}/${(0, node_crypto_1.randomUUID)().replace(/-/g, '')}.${ext}`;
+        const { data, error } = await sb.storage.from(bucket).createSignedUploadUrl(path, { upsert: true });
+        if (error || !data)
+            throw new common_1.BadRequestException(error?.message ?? 'document presign failed');
+        const { data: pub } = sb.storage.from(bucket).getPublicUrl(path);
+        return {
+            signedUrl: data.signedUrl,
+            token: data.token,
+            path: data.path,
+            bucket,
+            publicUrl: pub?.publicUrl?.trim() || null,
+            expiresInHours: 2,
+        };
     }
     async hydrateFromDatabase() {
         const sb = this.db();
@@ -226,6 +263,9 @@ let TechniciansService = TechniciansService_1 = class TechniciansService {
             bankName: dto.bankName?.trim() || null,
             bankAccount: dto.bankAccount?.trim() || null,
             bankHolder: dto.bankHolder?.trim() || null,
+            bankVerificationStatus: dto.bankName || dto.bankAccount || dto.bankHolder ? 'pending' : 'unsubmitted',
+            bankVerifiedAt: null,
+            bankRejectReason: null,
             platformFeeRate: 20,
             profilePhotoUrl: null,
             rejectReason: null,
@@ -326,6 +366,9 @@ let TechniciansService = TechniciansService_1 = class TechniciansService {
             bankName: null,
             bankAccount: null,
             bankHolder: null,
+            bankVerificationStatus: 'unsubmitted',
+            bankVerifiedAt: null,
+            bankRejectReason: null,
             platformFeeRate: 20,
             profilePhotoUrl: null,
             rejectReason: null,
@@ -360,6 +403,14 @@ let TechniciansService = TechniciansService_1 = class TechniciansService {
             patch.base_region = dto.baseRegion ?? null;
         if (dto.status !== undefined)
             patch.status = dto.status;
+        if (dto.bankVerificationStatus !== undefined) {
+            patch.bank_verification_status = dto.bankVerificationStatus;
+            patch.bank_verified_at = dto.bankVerificationStatus === 'verified' ? new Date().toISOString() : null;
+            if (dto.bankVerificationStatus !== 'rejected')
+                patch.bank_reject_reason = null;
+        }
+        if (dto.bankRejectReason !== undefined)
+            patch.bank_reject_reason = dto.bankRejectReason?.trim() || null;
         patch.reject_reason = null;
         const { error } = await this.db().from('technicians').update(patch).eq('id', row.id);
         if (error)

@@ -1,6 +1,6 @@
 import { Body, Controller, Post, UnauthorizedException } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { TechnicianSessionDto, TechnicianSignupDto } from './technician.dto';
+import { TechnicianDocumentPresignDto, TechnicianSessionDto, TechnicianSignupDto } from './technician.dto';
 import { TechniciansService } from './technicians.service';
 
 @ApiTags('technician-public')
@@ -11,6 +11,11 @@ export class TechnicianPublicController {
   @Post('technician/register')
   register(@Body() dto: TechnicianSignupDto) {
     return this.technicians.signup(dto);
+  }
+
+  @Post('technician/documents/presign')
+  presignDocument(@Body() dto: TechnicianDocumentPresignDto) {
+    return this.technicians.presignDocumentUpload(dto);
   }
 
   @Post('technician/session')

@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateAdminInviteDto = exports.ReviewOnboardingDto = exports.UpdateCouponDto = exports.CreateCouponDto = exports.UpdateSettlementStatusDto = exports.ConfirmSettlementDto = exports.CancelPaymentDto = exports.UpdateOnboardingDto = exports.UpdateTechnicianDto = exports.UpdateBookingDto = exports.CreateBookingDto = exports.UpdateMaterialDto = exports.CreateMaterialDto = exports.UpdateSellerDto = exports.UpdateMemberDto = exports.CreateSellerDto = exports.RegisterSellerDto = exports.MemberSessionDto = exports.RegisterMemberDto = exports.CreateMemberDto = exports.CreateTechnicianDto = exports.UpdateBookingStatusDto = exports.AssignTechnicianDto = void 0;
+exports.CreateAdminInviteDto = exports.ReviewOnboardingDto = exports.UpdateCouponDto = exports.CreateCouponDto = exports.UpdateSettlementStatusDto = exports.ConfirmSettlementDto = exports.CancelPaymentDto = exports.UpdateOnboardingDto = exports.UpdateTechnicianDto = exports.UpdateBookingDto = exports.CreateBookingDto = exports.UpdateMaterialDto = exports.CreateMaterialDto = exports.UpdateSellerDto = exports.UpdateMemberDto = exports.CreateSellerDto = exports.RegisterSellerDto = exports.CreateOrderReviewDto = exports.UseCouponDto = exports.UpdateAirconAssetDto = exports.CreateAirconAssetDto = exports.UpdateMemberAddressDto = exports.CreateMemberAddressDto = exports.MemberSessionDto = exports.RegisterMemberDto = exports.CreateMemberDto = exports.CreateTechnicianDto = exports.UpdateBookingStatusDto = exports.AssignTechnicianDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 class AssignTechnicianDto {
@@ -149,6 +149,189 @@ __decorate([
     (0, class_validator_1.MinLength)(5),
     __metadata("design:type", String)
 ], MemberSessionDto.prototype, "password", void 0);
+class CreateMemberAddressDto {
+}
+exports.CreateMemberAddressDto = CreateMemberAddressDto;
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(3),
+    __metadata("design:type", String)
+], CreateMemberAddressDto.prototype, "address", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMemberAddressDto.prototype, "detailAddress", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMemberAddressDto.prototype, "sido", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMemberAddressDto.prototype, "sigungu", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMemberAddressDto.prototype, "dong", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateMemberAddressDto.prototype, "isDefault", void 0);
+class UpdateMemberAddressDto {
+}
+exports.UpdateMemberAddressDto = UpdateMemberAddressDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(3),
+    __metadata("design:type", String)
+], UpdateMemberAddressDto.prototype, "address", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMemberAddressDto.prototype, "detailAddress", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMemberAddressDto.prototype, "sido", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMemberAddressDto.prototype, "sigungu", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMemberAddressDto.prototype, "dong", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateMemberAddressDto.prototype, "isDefault", void 0);
+class CreateAirconAssetDto {
+}
+exports.CreateAirconAssetDto = CreateAirconAssetDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateAirconAssetDto.prototype, "addressId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: ['wall', 'stand', 'two_in_one', 'system', 'unknown'] }),
+    (0, class_validator_1.IsIn)(['wall', 'stand', 'two_in_one', 'system', 'unknown']),
+    __metadata("design:type", String)
+], CreateAirconAssetDto.prototype, "type", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAirconAssetDto.prototype, "brand", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAirconAssetDto.prototype, "modelName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1990),
+    __metadata("design:type", Number)
+], CreateAirconAssetDto.prototype, "installedYear", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateAirconAssetDto.prototype, "memo", void 0);
+class UpdateAirconAssetDto {
+}
+exports.UpdateAirconAssetDto = UpdateAirconAssetDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], UpdateAirconAssetDto.prototype, "addressId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, enum: ['wall', 'stand', 'two_in_one', 'system', 'unknown'] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['wall', 'stand', 'two_in_one', 'system', 'unknown']),
+    __metadata("design:type", String)
+], UpdateAirconAssetDto.prototype, "type", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAirconAssetDto.prototype, "brand", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAirconAssetDto.prototype, "modelName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1990),
+    __metadata("design:type", Number)
+], UpdateAirconAssetDto.prototype, "installedYear", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAirconAssetDto.prototype, "memo", void 0);
+class UseCouponDto {
+}
+exports.UseCouponDto = UseCouponDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, description: '쿠폰을 특정 주문에 사용할 때 전달' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], UseCouponDto.prototype, "orderId", void 0);
+class CreateOrderReviewDto {
+}
+exports.CreateOrderReviewDto = CreateOrderReviewDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ minimum: 1, maximum: 5 }),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Max)(5),
+    __metadata("design:type", Number)
+], CreateOrderReviewDto.prototype, "rating", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateOrderReviewDto.prototype, "comment", void 0);
 class RegisterSellerDto {
 }
 exports.RegisterSellerDto = RegisterSellerDto;
@@ -532,11 +715,23 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateTechnicianDto.prototype, "baseRegion", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ required: false, enum: ['pending', 'approved', 'rejected', 'suspended'] }),
+    (0, swagger_1.ApiProperty)({ required: false, enum: ['pending', 'reviewing', 'approved', 'rejected', 'suspended'] }),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsIn)(['pending', 'approved', 'rejected', 'suspended']),
+    (0, class_validator_1.IsIn)(['pending', 'reviewing', 'approved', 'rejected', 'suspended']),
     __metadata("design:type", String)
 ], UpdateTechnicianDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, enum: ['unsubmitted', 'pending', 'verified', 'rejected'] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['unsubmitted', 'pending', 'verified', 'rejected']),
+    __metadata("design:type", String)
+], UpdateTechnicianDto.prototype, "bankVerificationStatus", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateTechnicianDto.prototype, "bankRejectReason", void 0);
 class UpdateOnboardingDto {
 }
 exports.UpdateOnboardingDto = UpdateOnboardingDto;

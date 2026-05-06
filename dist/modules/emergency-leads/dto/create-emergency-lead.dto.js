@@ -52,4 +52,21 @@ __decorate([
     (0, class_validator_1.IsIn)(['now', 'scheduled']),
     __metadata("design:type", String)
 ], CreateEmergencyLeadDto.prototype, "urgency", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateEmergencyLeadDto.prototype, "userId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(40),
+    __metadata("design:type", String)
+], CreateEmergencyLeadDto.prototype, "customerPhone", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(80),
+    __metadata("design:type", String)
+], CreateEmergencyLeadDto.prototype, "customerName", void 0);
 //# sourceMappingURL=create-emergency-lead.dto.js.map

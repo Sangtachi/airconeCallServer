@@ -48,6 +48,13 @@ export class TechnicianPortalController {
       workStatus: t.workStatus,
       baseRegion: t.baseRegion,
       capabilities: t.capabilities,
+      regions: t.regions,
+      availability: t.availability,
+      bankName: t.bankName,
+      bankHolder: t.bankHolder,
+      bankAccountMasked: t.bankAccount ? `${'*'.repeat(Math.max(0, t.bankAccount.replace(/\D/g, '').length - 4))}${t.bankAccount.replace(/\D/g, '').slice(-4)}` : null,
+      bankVerificationStatus: t.bankVerificationStatus,
+      bankRejectReason: t.bankRejectReason,
     };
   }
 
@@ -84,6 +91,11 @@ export class TechnicianPortalController {
   @Get('technician/settlements')
   settlements(@Req() req: TechnicianRequest) {
     return this.orders.technicianListSettlements(req.technician!.id);
+  }
+
+  @Post('technician/settlements/:settlementId/request-payout')
+  requestPayout(@Req() req: TechnicianRequest, @Param('settlementId') settlementId: string) {
+    return this.orders.technicianRequestSettlementPayout(req.technician!.id, settlementId);
   }
 
   @Get('technician/materials')

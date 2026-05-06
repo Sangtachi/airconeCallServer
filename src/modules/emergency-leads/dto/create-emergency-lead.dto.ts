@@ -34,4 +34,18 @@ export class CreateEmergencyLeadDto {
   @IsOptional()
   @IsIn(['now', 'scheduled'])
   urgency?: 'now' | 'scheduled';
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  customerPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  customerName?: string;
 }

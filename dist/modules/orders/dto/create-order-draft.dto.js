@@ -49,4 +49,10 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateOrderDraftDto.prototype, "customerMemo", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateOrderDraftDto.prototype, "userId", void 0);
 //# sourceMappingURL=create-order-draft.dto.js.map

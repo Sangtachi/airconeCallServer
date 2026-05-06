@@ -52,6 +52,30 @@ let MemberPublicController = class MemberPublicController {
     dashboard(id) {
         return this.admin.memberDashboard(id);
     }
+    createAddress(id, dto) {
+        return this.admin.createMemberAddress(id, dto);
+    }
+    updateAddress(id, addressId, dto) {
+        return this.admin.updateMemberAddress(id, addressId, dto);
+    }
+    deleteAddress(id, addressId) {
+        return this.admin.deleteMemberAddress(id, addressId);
+    }
+    createAsset(id, dto) {
+        return this.admin.createAirconAsset(id, dto);
+    }
+    updateAsset(id, assetId, dto) {
+        return this.admin.updateAirconAsset(id, assetId, dto);
+    }
+    deleteAsset(id, assetId) {
+        return this.admin.deleteAirconAsset(id, assetId);
+    }
+    useCoupon(id, couponId, dto) {
+        return this.admin.useMemberCoupon(id, couponId, dto);
+    }
+    reviewOrder(id, orderId, dto) {
+        return this.admin.reviewMemberOrder(id, orderId, dto);
+    }
 };
 exports.MemberPublicController = MemberPublicController;
 __decorate([
@@ -78,6 +102,82 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], MemberPublicController.prototype, "dashboard", null);
+__decorate([
+    (0, common_1.Post)(':id/addresses'),
+    (0, swagger_1.ApiOperation)({ summary: '고객 주소 등록(Supabase)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, admin_dto_1.CreateMemberAddressDto]),
+    __metadata("design:returntype", void 0)
+], MemberPublicController.prototype, "createAddress", null);
+__decorate([
+    (0, common_1.Patch)(':id/addresses/:addressId'),
+    (0, swagger_1.ApiOperation)({ summary: '고객 주소 수정(Supabase)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('addressId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, admin_dto_1.UpdateMemberAddressDto]),
+    __metadata("design:returntype", void 0)
+], MemberPublicController.prototype, "updateAddress", null);
+__decorate([
+    (0, common_1.Delete)(':id/addresses/:addressId'),
+    (0, swagger_1.ApiOperation)({ summary: '고객 주소 삭제(Supabase)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('addressId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], MemberPublicController.prototype, "deleteAddress", null);
+__decorate([
+    (0, common_1.Post)(':id/assets'),
+    (0, swagger_1.ApiOperation)({ summary: '고객 에어컨 자산 등록(Supabase)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, admin_dto_1.CreateAirconAssetDto]),
+    __metadata("design:returntype", void 0)
+], MemberPublicController.prototype, "createAsset", null);
+__decorate([
+    (0, common_1.Patch)(':id/assets/:assetId'),
+    (0, swagger_1.ApiOperation)({ summary: '고객 에어컨 자산 수정(Supabase)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('assetId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, admin_dto_1.UpdateAirconAssetDto]),
+    __metadata("design:returntype", void 0)
+], MemberPublicController.prototype, "updateAsset", null);
+__decorate([
+    (0, common_1.Delete)(':id/assets/:assetId'),
+    (0, swagger_1.ApiOperation)({ summary: '고객 에어컨 자산 삭제(Supabase)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('assetId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], MemberPublicController.prototype, "deleteAsset", null);
+__decorate([
+    (0, common_1.Post)(':id/coupons/:couponId/use'),
+    (0, swagger_1.ApiOperation)({ summary: '고객 쿠폰 사용 처리 + 리워드 로그(Supabase)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('couponId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, admin_dto_1.UseCouponDto]),
+    __metadata("design:returntype", void 0)
+], MemberPublicController.prototype, "useCoupon", null);
+__decorate([
+    (0, common_1.Post)(':id/orders/:orderId/review'),
+    (0, swagger_1.ApiOperation)({ summary: '고객 주문 리뷰 등록/수정(Supabase)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('orderId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, admin_dto_1.CreateOrderReviewDto]),
+    __metadata("design:returntype", void 0)
+], MemberPublicController.prototype, "reviewOrder", null);
 exports.MemberPublicController = MemberPublicController = __decorate([
     (0, swagger_1.ApiTags)('members-public'),
     (0, common_1.Controller)('members'),

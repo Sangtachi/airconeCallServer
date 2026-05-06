@@ -24,6 +24,9 @@ let TechnicianPublicController = class TechnicianPublicController {
     register(dto) {
         return this.technicians.signup(dto);
     }
+    presignDocument(dto) {
+        return this.technicians.presignDocumentUpload(dto);
+    }
     session(dto) {
         const row = this.technicians.findApprovedByCredentials(dto.phone, dto.password);
         if (!row) {
@@ -46,6 +49,13 @@ __decorate([
     __metadata("design:paramtypes", [technician_dto_1.TechnicianSignupDto]),
     __metadata("design:returntype", void 0)
 ], TechnicianPublicController.prototype, "register", null);
+__decorate([
+    (0, common_1.Post)('technician/documents/presign'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [technician_dto_1.TechnicianDocumentPresignDto]),
+    __metadata("design:returntype", void 0)
+], TechnicianPublicController.prototype, "presignDocument", null);
 __decorate([
     (0, common_1.Post)('technician/session'),
     __param(0, (0, common_1.Body)()),

@@ -22,6 +22,9 @@ Supabase(또는 Postgres) 적용 순서 — 위에서 아래로 실행하세요.
    members/user_addresses/aircon_assets/coupons/reward_logs/admin_logs,
    technician_regions/availability/documents, orders.assigned_technician_id UUID FK 정리.
 
+9) customer_technician_ops_patch.sql — 고객 주소/자산 CRUD 후속, 기사 리뷰,
+   기사 계좌 검증 상태, 기사 서류 Storage 경로, 정산 지급 요청 컬럼.
+
 점검(읽기 전용):
   check_installation_status.sql — 함수/테이블/트리거 나열
   verify_installation.sql — PASS/FAIL 요약(함수·테이블·order_id·FK·시드 대표 SKU)
@@ -40,6 +43,7 @@ Supabase(또는 Postgres) 적용 순서 — 위에서 아래로 실행하세요.
   SUPABASE_URL=
   SUPABASE_SERVICE_ROLE_KEY=   서버 전용
   SUPABASE_STORAGE_ORDER_PHOTOS_BUCKET=order-photos   (선택; 기본 order-photos)
+  SUPABASE_STORAGE_TECHNICIAN_DOCUMENTS_BUCKET=technician-documents   (선택; 기본 technician-documents)
   x-admin-role / x-technician-id 는 이번 단계의 임시 헤더입니다. 보안 인증은 다음 스프린트에서 Supabase Auth 또는 서버 세션으로 교체합니다.
   EMERGENCY_DEFAULT_PRODUCT_ID=  (선택 — 긴급 리드 자동 주문 초안의 기본 설치 상품 UUID; 미설정 시 첫 활성 설치 상품 폴백)
   ORDER_PHOTOS_SIGNED_URL_TTL_SEC=900  (0 이면 목록에 DB url 그대로 — 공개 버킷용)

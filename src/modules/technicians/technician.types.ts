@@ -28,6 +28,9 @@ export interface TechnicianEntity {
   bankName: string | null;
   bankAccount: string | null;
   bankHolder: string | null;
+  bankVerificationStatus: 'unsubmitted' | 'pending' | 'verified' | 'rejected';
+  bankVerifiedAt: string | null;
+  bankRejectReason: string | null;
   platformFeeRate: number;
   profilePhotoUrl: string | null;
   rejectReason: string | null;

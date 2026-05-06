@@ -131,6 +131,17 @@ export class TechnicianSessionDto {
   password!: string;
 }
 
+export class TechnicianDocumentPresignDto {
+  @ApiProperty({ enum: ['id_card', 'business_license', 'career', 'insurance', 'bankbook', 'other'] })
+  @IsIn(['id_card', 'business_license', 'career', 'insurance', 'bankbook', 'other'])
+  documentType!: 'id_card' | 'business_license' | 'career' | 'insurance' | 'bankbook' | 'other';
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  mimeType?: string;
+}
+
 export class TechnicianOrderPhotoDto {
   @ApiProperty({ enum: ['before_work', 'after_work', 'other'] })
   @IsIn(['before_work', 'after_work', 'other'])

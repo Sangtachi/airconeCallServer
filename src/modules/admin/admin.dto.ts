@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, Min, MinLength } from 'class-validator';
 import { BookingStatus } from './admin.types';
 
 export class AssignTechnicianDto {
@@ -113,6 +113,156 @@ export class MemberSessionDto {
   @IsString()
   @MinLength(5)
   password!: string;
+}
+
+export class CreateMemberAddressDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(3)
+  address!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  detailAddress?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  sido?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  sigungu?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  dong?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
+}
+
+export class UpdateMemberAddressDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  address?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  detailAddress?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  sido?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  sigungu?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  dong?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
+}
+
+export class CreateAirconAssetDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsUUID()
+  addressId?: string;
+
+  @ApiProperty({ enum: ['wall', 'stand', 'two_in_one', 'system', 'unknown'] })
+  @IsIn(['wall', 'stand', 'two_in_one', 'system', 'unknown'])
+  type!: 'wall' | 'stand' | 'two_in_one' | 'system' | 'unknown';
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  modelName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(1990)
+  installedYear?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  memo?: string;
+}
+
+export class UpdateAirconAssetDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsUUID()
+  addressId?: string;
+
+  @ApiProperty({ required: false, enum: ['wall', 'stand', 'two_in_one', 'system', 'unknown'] })
+  @IsOptional()
+  @IsIn(['wall', 'stand', 'two_in_one', 'system', 'unknown'])
+  type?: 'wall' | 'stand' | 'two_in_one' | 'system' | 'unknown';
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  modelName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(1990)
+  installedYear?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  memo?: string;
+}
+
+export class UseCouponDto {
+  @ApiProperty({ required: false, description: '쿠폰을 특정 주문에 사용할 때 전달' })
+  @IsOptional()
+  @IsUUID()
+  orderId?: string;
+}
+
+export class CreateOrderReviewDto {
+  @ApiProperty({ minimum: 1, maximum: 5 })
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  rating!: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  comment?: string;
 }
 
 export class RegisterSellerDto {
@@ -427,10 +577,20 @@ export class UpdateTechnicianDto {
   @IsString()
   baseRegion?: string;
 
-  @ApiProperty({ required: false, enum: ['pending', 'approved', 'rejected', 'suspended'] })
+  @ApiProperty({ required: false, enum: ['pending', 'reviewing', 'approved', 'rejected', 'suspended'] })
   @IsOptional()
-  @IsIn(['pending', 'approved', 'rejected', 'suspended'])
-  status?: 'pending' | 'approved' | 'rejected' | 'suspended';
+  @IsIn(['pending', 'reviewing', 'approved', 'rejected', 'suspended'])
+  status?: 'pending' | 'reviewing' | 'approved' | 'rejected' | 'suspended';
+
+  @ApiProperty({ required: false, enum: ['unsubmitted', 'pending', 'verified', 'rejected'] })
+  @IsOptional()
+  @IsIn(['unsubmitted', 'pending', 'verified', 'rejected'])
+  bankVerificationStatus?: 'unsubmitted' | 'pending' | 'verified' | 'rejected';
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  bankRejectReason?: string;
 }
 
 export class UpdateOnboardingDto {

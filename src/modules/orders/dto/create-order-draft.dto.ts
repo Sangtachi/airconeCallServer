@@ -29,4 +29,9 @@ export class CreateOrderDraftDto {
   @IsOptional()
   @IsString()
   customerMemo?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }

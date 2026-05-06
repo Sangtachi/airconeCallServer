@@ -3,6 +3,7 @@ const opts = (pairs) => pairs.map(([v, l]) => ({ value: v, label: l || v }));
 const memberStatusOptions = opts([['active', '활성'], ['inactive', '비활성'], ['banned', '차단']]);
 const sellerStatusOptions = opts([['pending', '대기'], ['reviewing', '검토중'], ['approved', '승인'], ['rejected', '반려'], ['suspended', '정지']]);
 const technicianStatusOptions = opts([['pending', '대기'], ['reviewing', '검토중'], ['approved', '승인'], ['rejected', '반려'], ['suspended', '정지']]);
+const bankVerificationOptions = opts([['unsubmitted', '미제출'], ['pending', '검토대기'], ['verified', '검증완료'], ['rejected', '반려']]);
 const paymentStatusOptions = opts([['paid', '결제완료'], ['ready', '대기'], ['failed', '실패'], ['cancelled', '취소'], ['partial_cancelled', '부분취소']]);
 const settlementStatusOptions = opts([['pending', '대기'], ['confirmed', '확정'], ['paid', '지급완료'], ['held', '보류'], ['cancelled', '취소']]);
 const quoteStatusOptions = opts([['requested', '요청'], ['approved', '고객승인'], ['paid', '결제완료'], ['rejected', '반려'], ['cancelled', '취소']]);
@@ -111,6 +112,8 @@ const accountViews = {
       { key: 'password', label: '비밀번호 변경(비우면 유지)', type: 'password', minLength: 5 },
       { key: 'baseRegion', label: '활동 지역', type: 'text' },
       { key: 'status', label: '상태', type: 'select', options: technicianStatusOptions },
+      { key: 'bankVerificationStatus', label: '계좌 검증', type: 'select', options: bankVerificationOptions },
+      { key: 'bankRejectReason', label: '계좌 반려 사유', type: 'text' },
     ],
   },
   admins: {
@@ -783,8 +786,9 @@ function renderActions() {
     $actions.innerHTML = `<button data-s="approved">승인</button><button data-s="reviewing">검토중</button><button data-s="suspended">정지</button><button data-s="rejected">반려</button>`;
     $actions.querySelectorAll('button').forEach((b) => (b.onclick = () => patch(`${cfg.list}/${selected.id}`, { status: b.dataset.s })));
   } else if (activeId === 'technicians') {
-    $actions.innerHTML = `<button data-s="approved">승인</button><button data-s="suspended">정지</button>`;
-    $actions.querySelectorAll('button').forEach((b) => (b.onclick = () => patch(`${cfg.list}/${selected.id}`, { status: b.dataset.s })));
+    $actions.innerHTML = `<button data-s="approved">승인</button><button data-s="suspended">정지</button><button data-b="verified">계좌검증</button><button data-b="rejected">계좌반려</button>`;
+    $actions.querySelectorAll('button[data-s]').forEach((b) => (b.onclick = () => patch(`${cfg.list}/${selected.id}`, { status: b.dataset.s })));
+    $actions.querySelectorAll('button[data-b]').forEach((b) => (b.onclick = () => patch(`${cfg.list}/${selected.id}`, { bankVerificationStatus: b.dataset.b })));
   } else if (activeId === 'onboarding') {
     $actions.innerHTML = `<button data-s="reviewing">검토중</button><button data-s="approved">승인</button><button data-s="rejected">반려</button>`;
     $actions

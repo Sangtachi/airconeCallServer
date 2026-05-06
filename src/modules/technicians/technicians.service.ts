@@ -19,7 +19,7 @@ import {
 } from '../admin/admin.dto';
 import type { TechnicianOnboarding } from '../admin/admin.types';
 import type { TechnicianCapability, TechnicianEntity } from './technician.types';
-import { TechnicianSignupDto } from './technician.dto';
+import { TechnicianDocumentPresignDto, TechnicianSignupDto } from './technician.dto';
 import { fetchCapabilitiesBulk, technicianFromRow, technicianInsertPayload } from './technicians-db.mapper';
 
 function normalizePhone(p: string): string {
@@ -49,6 +49,24 @@ function isMissingSupabaseRelation(error: unknown): boolean {
   return /schema cache|could not find the table|relation .* does not exist/i.test(message);
 }
 
+function documentExtFromMime(mime: string | undefined): string {
+  const normalized = String(mime ?? '').toLowerCase().split(';')[0].trim();
+  const map: Record<string, string> = {
+    'application/pdf': 'pdf',
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/heic': 'heic',
+    'image/heif': 'heif',
+  };
+  return map[normalized] ?? 'bin';
+}
+
+function technicianDocumentsBucketName(): string {
+  return (process.env.SUPABASE_STORAGE_TECHNICIAN_DOCUMENTS_BUCKET ?? 'technician-documents').trim() || 'technician-documents';
+}
+
 export function toAdminTechnicianBrief(e: TechnicianEntity) {
   return {
     id: e.id,
@@ -57,6 +75,9 @@ export function toAdminTechnicianBrief(e: TechnicianEntity) {
     status: e.status,
     workStatus: e.workStatus,
     baseRegion: e.baseRegion ?? undefined,
+    bankName: e.bankName ?? undefined,
+    bankHolder: e.bankHolder ?? undefined,
+    bankVerificationStatus: e.bankVerificationStatus,
     feeRate: e.platformFeeRate,
     regions: e.regions,
     capabilities: e.capabilities,
@@ -95,6 +116,31 @@ export class TechniciansService implements OnModuleInit {
     }
     await this.hydrateFromDatabase();
     this.logger.log(`Technicians: Supabase 로드 ${this.byId.size}건`);
+  }
+
+  async presignDocumentUpload(dto: TechnicianDocumentPresignDto): Promise<{
+    signedUrl: string;
+    token: string;
+    path: string;
+    bucket: string;
+    publicUrl: string | null;
+    expiresInHours: number;
+  }> {
+    const sb = this.db();
+    const bucket = technicianDocumentsBucketName();
+    const ext = documentExtFromMime(dto.mimeType);
+    const path = `onboarding/${dto.documentType}/${randomUUID().replace(/-/g, '')}.${ext}`;
+    const { data, error } = await sb.storage.from(bucket).createSignedUploadUrl(path, { upsert: true });
+    if (error || !data) throw new BadRequestException(error?.message ?? 'document presign failed');
+    const { data: pub } = sb.storage.from(bucket).getPublicUrl(path);
+    return {
+      signedUrl: data.signedUrl,
+      token: data.token,
+      path: data.path,
+      bucket,
+      publicUrl: pub?.publicUrl?.trim() || null,
+      expiresInHours: 2,
+    };
   }
 
   private async hydrateFromDatabase(): Promise<void> {
@@ -271,6 +317,9 @@ export class TechniciansService implements OnModuleInit {
       bankName: dto.bankName?.trim() || null,
       bankAccount: dto.bankAccount?.trim() || null,
       bankHolder: dto.bankHolder?.trim() || null,
+      bankVerificationStatus: dto.bankName || dto.bankAccount || dto.bankHolder ? 'pending' : 'unsubmitted',
+      bankVerifiedAt: null,
+      bankRejectReason: null,
       platformFeeRate: 20,
       profilePhotoUrl: null,
       rejectReason: null,
@@ -379,6 +428,9 @@ export class TechniciansService implements OnModuleInit {
       bankName: null,
       bankAccount: null,
       bankHolder: null,
+      bankVerificationStatus: 'unsubmitted',
+      bankVerifiedAt: null,
+      bankRejectReason: null,
       platformFeeRate: 20,
       profilePhotoUrl: null,
       rejectReason: null,
@@ -410,6 +462,12 @@ export class TechniciansService implements OnModuleInit {
     }
     if (dto.baseRegion !== undefined) patch.base_region = dto.baseRegion ?? null;
     if (dto.status !== undefined) patch.status = dto.status;
+    if (dto.bankVerificationStatus !== undefined) {
+      patch.bank_verification_status = dto.bankVerificationStatus;
+      patch.bank_verified_at = dto.bankVerificationStatus === 'verified' ? new Date().toISOString() : null;
+      if (dto.bankVerificationStatus !== 'rejected') patch.bank_reject_reason = null;
+    }
+    if (dto.bankRejectReason !== undefined) patch.bank_reject_reason = dto.bankRejectReason?.trim() || null;
     patch.reject_reason = null;
     const { error } = await this.db().from('technicians').update(patch).eq('id', row.id);
     if (error) throw new BadRequestException(error.message);

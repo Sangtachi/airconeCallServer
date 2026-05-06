@@ -21,20 +21,26 @@ import {
   AssignTechnicianDto,
   CancelPaymentDto,
   ConfirmSettlementDto,
+  CreateAirconAssetDto,
   CreateBookingDto,
   CreateCouponDto,
   CreateMaterialDto,
   CreateMemberDto,
+  CreateMemberAddressDto,
+  CreateOrderReviewDto,
   CreateSellerDto,
   RegisterMemberDto,
   RegisterSellerDto,
+  UpdateAirconAssetDto,
   UpdateBookingDto,
   UpdateBookingStatusDto,
   UpdateCouponDto,
   UpdateMaterialDto,
   UpdateMemberDto,
+  UpdateMemberAddressDto,
   UpdateSellerDto,
   UpdateSettlementStatusDto,
+  UseCouponDto,
 } from './admin.dto';
 import { SettlementAuditService } from './settlement-audit.service';
 
@@ -205,6 +211,19 @@ function customerOrderFromRow(row: Record<string, unknown>) {
     addressSummary: String(row.address_summary ?? ''),
     desiredDate: str(row.desired_date),
     desiredTimeSlot: str(row.desired_time_slot),
+    createdAt: String(row.created_at ?? new Date().toISOString()),
+    updatedAt: String(row.updated_at ?? new Date().toISOString()),
+  };
+}
+
+function reviewFromRow(row: Record<string, unknown>) {
+  return {
+    id: String(row.id),
+    orderId: String(row.order_id),
+    technicianId: str(row.technician_id),
+    memberId: str(row.member_id),
+    rating: Number(row.rating ?? 0),
+    comment: str(row.comment),
     createdAt: String(row.created_at ?? new Date().toISOString()),
     updatedAt: String(row.updated_at ?? new Date().toISOString()),
   };
@@ -520,7 +539,7 @@ export class AdminService {
       throw new UnauthorizedException('고객 대시보드 계정이 아닙니다.');
     }
     const sb = this.db();
-    const [couponsRes, inquiriesRes, addressesRes, assetsRes, rewardsRes, ordersRes] = await Promise.all([
+    const [couponsRes, inquiriesRes, addressesRes, assetsRes, rewardsRes, ordersRes, reviewsRes] = await Promise.all([
       sb
         .from('coupons')
         .select('*')
@@ -555,6 +574,12 @@ export class AdminService {
         .or(`user_id.eq.${member.id},customer_phone.eq.${member.phone}`)
         .order('created_at', { ascending: false })
         .limit(30),
+      sb
+        .from('technician_reviews')
+        .select('*')
+        .eq('member_id', member.id)
+        .order('created_at', { ascending: false })
+        .limit(50),
     ]);
     if (couponsRes.error) throw new BadRequestException(couponsRes.error.message);
     if (inquiriesRes.error) throw new BadRequestException(inquiriesRes.error.message);
@@ -562,6 +587,7 @@ export class AdminService {
     if (assetsRes.error) throw new BadRequestException(assetsRes.error.message);
     if (rewardsRes.error) throw new BadRequestException(rewardsRes.error.message);
     if (ordersRes.error) throw new BadRequestException(ordersRes.error.message);
+    if (reviewsRes.error) throw new BadRequestException(reviewsRes.error.message);
     return {
       member,
       coupons: ((couponsRes.data ?? []) as Record<string, unknown>[]).map(couponFromRow),
@@ -569,6 +595,7 @@ export class AdminService {
       addresses: ((addressesRes.data ?? []) as Record<string, unknown>[]).map(addressFromRow),
       airconAssets: ((assetsRes.data ?? []) as Record<string, unknown>[]).map(airconAssetFromRow),
       orders: ((ordersRes.data ?? []) as Record<string, unknown>[]).map(customerOrderFromRow),
+      reviews: ((reviewsRes.data ?? []) as Record<string, unknown>[]).map(reviewFromRow),
       inquiries: ((inquiriesRes.data ?? []) as Record<string, unknown>[]).map((r) => ({
         id: String(r.id),
         location: str(r.location_text),
@@ -581,6 +608,227 @@ export class AdminService {
         updatedAt: String(r.updated_at ?? new Date().toISOString()),
       })),
     };
+  }
+
+  private async ensureMemberExists(memberId: string): Promise<Member> {
+    return this.getMember(requireUuid(memberId, 'member id'));
+  }
+
+  private async assertAddressOwner(memberId: string, addressId: string) {
+    const { data, error } = await this.db()
+      .from('user_addresses')
+      .select('id,user_id')
+      .eq('id', requireUuid(addressId, 'address id'))
+      .maybeSingle();
+    if (error) throw new BadRequestException(error.message);
+    if (!data || String((data as { user_id?: string }).user_id) !== memberId) {
+      throw new NotFoundException('address not found');
+    }
+  }
+
+  private async assertAssetOwner(memberId: string, assetId: string) {
+    const { data, error } = await this.db()
+      .from('aircon_assets')
+      .select('id,user_id')
+      .eq('id', requireUuid(assetId, 'asset id'))
+      .maybeSingle();
+    if (error) throw new BadRequestException(error.message);
+    if (!data || String((data as { user_id?: string }).user_id) !== memberId) {
+      throw new NotFoundException('asset not found');
+    }
+  }
+
+  private async clearOtherDefaultAddresses(memberId: string, exceptId?: string) {
+    let q = this.db().from('user_addresses').update({ is_default: false }).eq('user_id', memberId);
+    if (exceptId) q = q.neq('id', exceptId);
+    const { error } = await q;
+    if (error) throw new BadRequestException(error.message);
+  }
+
+  async createMemberAddress(memberId: string, dto: CreateMemberAddressDto) {
+    const member = await this.ensureMemberExists(memberId);
+    if (dto.isDefault) await this.clearOtherDefaultAddresses(member.id);
+    const { data, error } = await this.db()
+      .from('user_addresses')
+      .insert({
+        user_id: member.id,
+        address: dto.address.trim(),
+        detail_address: dto.detailAddress?.trim() || null,
+        sido: dto.sido?.trim() || null,
+        sigungu: dto.sigungu?.trim() || null,
+        dong: dto.dong?.trim() || null,
+        is_default: dto.isDefault ?? false,
+      })
+      .select('*')
+      .single();
+    if (error) throw new BadRequestException(error.message);
+    await this.audit('create_member_address', 'user_addresses', String((data as { id: string }).id), { memberId: member.id });
+    return addressFromRow(data as Record<string, unknown>);
+  }
+
+  async updateMemberAddress(memberId: string, addressId: string, dto: UpdateMemberAddressDto) {
+    const member = await this.ensureMemberExists(memberId);
+    await this.assertAddressOwner(member.id, addressId);
+    if (dto.isDefault) await this.clearOtherDefaultAddresses(member.id, addressId);
+    const patch: Record<string, unknown> = {};
+    if (dto.address !== undefined) patch.address = dto.address.trim();
+    if (dto.detailAddress !== undefined) patch.detail_address = dto.detailAddress.trim() || null;
+    if (dto.sido !== undefined) patch.sido = dto.sido.trim() || null;
+    if (dto.sigungu !== undefined) patch.sigungu = dto.sigungu.trim() || null;
+    if (dto.dong !== undefined) patch.dong = dto.dong.trim() || null;
+    if (dto.isDefault !== undefined) patch.is_default = dto.isDefault;
+    const { data, error } = await this.db()
+      .from('user_addresses')
+      .update(patch)
+      .eq('id', requireUuid(addressId, 'address id'))
+      .select('*')
+      .single();
+    if (error) throw new BadRequestException(error.message);
+    await this.audit('update_member_address', 'user_addresses', addressId, { memberId: member.id });
+    return addressFromRow(data as Record<string, unknown>);
+  }
+
+  async deleteMemberAddress(memberId: string, addressId: string) {
+    const member = await this.ensureMemberExists(memberId);
+    await this.assertAddressOwner(member.id, addressId);
+    const { error } = await this.db().from('user_addresses').delete().eq('id', requireUuid(addressId, 'address id'));
+    if (error) throw new BadRequestException(error.message);
+    await this.audit('delete_member_address', 'user_addresses', addressId, { memberId: member.id });
+    return { id: addressId, deleted: true };
+  }
+
+  async createAirconAsset(memberId: string, dto: CreateAirconAssetDto) {
+    const member = await this.ensureMemberExists(memberId);
+    if (dto.addressId) await this.assertAddressOwner(member.id, dto.addressId);
+    const { data, error } = await this.db()
+      .from('aircon_assets')
+      .insert({
+        user_id: member.id,
+        address_id: dto.addressId ?? null,
+        type: dto.type,
+        brand: dto.brand?.trim() || null,
+        model_name: dto.modelName?.trim() || null,
+        installed_year: dto.installedYear ?? null,
+        memo: dto.memo?.trim() || null,
+      })
+      .select('*')
+      .single();
+    if (error) throw new BadRequestException(error.message);
+    await this.audit('create_aircon_asset', 'aircon_assets', String((data as { id: string }).id), { memberId: member.id });
+    return airconAssetFromRow(data as Record<string, unknown>);
+  }
+
+  async updateAirconAsset(memberId: string, assetId: string, dto: UpdateAirconAssetDto) {
+    const member = await this.ensureMemberExists(memberId);
+    await this.assertAssetOwner(member.id, assetId);
+    if (dto.addressId) await this.assertAddressOwner(member.id, dto.addressId);
+    const patch: Record<string, unknown> = {};
+    if (dto.addressId !== undefined) patch.address_id = dto.addressId || null;
+    if (dto.type !== undefined) patch.type = dto.type;
+    if (dto.brand !== undefined) patch.brand = dto.brand.trim() || null;
+    if (dto.modelName !== undefined) patch.model_name = dto.modelName.trim() || null;
+    if (dto.installedYear !== undefined) patch.installed_year = dto.installedYear;
+    if (dto.memo !== undefined) patch.memo = dto.memo.trim() || null;
+    const { data, error } = await this.db()
+      .from('aircon_assets')
+      .update(patch)
+      .eq('id', requireUuid(assetId, 'asset id'))
+      .select('*')
+      .single();
+    if (error) throw new BadRequestException(error.message);
+    await this.audit('update_aircon_asset', 'aircon_assets', assetId, { memberId: member.id });
+    return airconAssetFromRow(data as Record<string, unknown>);
+  }
+
+  async deleteAirconAsset(memberId: string, assetId: string) {
+    const member = await this.ensureMemberExists(memberId);
+    await this.assertAssetOwner(member.id, assetId);
+    const { error } = await this.db().from('aircon_assets').delete().eq('id', requireUuid(assetId, 'asset id'));
+    if (error) throw new BadRequestException(error.message);
+    await this.audit('delete_aircon_asset', 'aircon_assets', assetId, { memberId: member.id });
+    return { id: assetId, deleted: true };
+  }
+
+  async useMemberCoupon(memberId: string, couponId: string, dto: UseCouponDto) {
+    const member = await this.ensureMemberExists(memberId);
+    const { data: coupon, error: e0 } = await this.db()
+      .from('coupons')
+      .select('*')
+      .eq('id', requireUuid(couponId, 'coupon id'))
+      .eq('user_id', member.id)
+      .maybeSingle();
+    if (e0) throw new BadRequestException(e0.message);
+    if (!coupon) throw new NotFoundException('coupon not found');
+    if (String((coupon as { status?: string }).status) !== 'active') {
+      throw new BadRequestException('coupon is not active');
+    }
+    const orderId = dto.orderId ? requireUuid(dto.orderId, 'order id') : null;
+    const { data, error } = await this.db()
+      .from('coupons')
+      .update({ status: 'used', used_booking_id: orderId })
+      .eq('id', couponId)
+      .select('*')
+      .single();
+    if (error) throw new BadRequestException(error.message);
+    await this.db().from('reward_logs').insert({
+      user_id: member.id,
+      action_type: 'coupon_use',
+      reward_type: 'discount_coupon',
+      amount: Number((coupon as { amount?: number }).amount ?? 0),
+      status: 'used',
+      reference_id: couponId,
+      payload: { orderId },
+    });
+    await this.audit('use_member_coupon', 'coupons', couponId, { memberId: member.id, orderId });
+    return couponFromRow(data as Record<string, unknown>);
+  }
+
+  async reviewMemberOrder(memberId: string, orderId: string, dto: CreateOrderReviewDto) {
+    const member = await this.ensureMemberExists(memberId);
+    const { data: order, error: e0 } = await this.db()
+      .from('orders')
+      .select('id,user_id,customer_phone,assigned_technician_id,order_status')
+      .eq('id', requireUuid(orderId, 'order id'))
+      .maybeSingle();
+    if (e0) throw new BadRequestException(e0.message);
+    if (!order) throw new NotFoundException('order not found');
+    const o = order as Record<string, unknown>;
+    if (String(o.user_id ?? '') !== member.id && String(o.customer_phone ?? '') !== member.phone) {
+      throw new UnauthorizedException('회원 주문이 아닙니다.');
+    }
+    if (!['completed', 'settlement_pending', 'settled'].includes(String(o.order_status ?? ''))) {
+      throw new BadRequestException('완료된 주문만 평가할 수 있습니다.');
+    }
+    const { data, error } = await this.db()
+      .from('technician_reviews')
+      .upsert(
+        {
+          order_id: orderId,
+          technician_id: o.assigned_technician_id ?? null,
+          member_id: member.id,
+          rating: dto.rating,
+          comment: dto.comment?.trim() || null,
+        },
+        { onConflict: 'order_id' },
+      )
+      .select('*')
+      .single();
+    if (error) throw new BadRequestException(error.message);
+    await this.db().from('reward_logs').insert({
+      user_id: member.id,
+      action_type: 'order_review',
+      reward_type: 'review',
+      amount: 0,
+      status: 'created',
+      reference_id: orderId,
+      payload: { rating: dto.rating },
+    });
+    await this.audit('review_member_order', 'technician_reviews', String((data as { id: string }).id), {
+      memberId: member.id,
+      orderId,
+      rating: dto.rating,
+    });
+    return reviewFromRow(data as Record<string, unknown>);
   }
 
   async registerSeller(dto: RegisterSellerDto) {

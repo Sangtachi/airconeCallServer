@@ -38,6 +38,13 @@ let TechnicianPortalController = class TechnicianPortalController {
             workStatus: t.workStatus,
             baseRegion: t.baseRegion,
             capabilities: t.capabilities,
+            regions: t.regions,
+            availability: t.availability,
+            bankName: t.bankName,
+            bankHolder: t.bankHolder,
+            bankAccountMasked: t.bankAccount ? `${'*'.repeat(Math.max(0, t.bankAccount.replace(/\D/g, '').length - 4))}${t.bankAccount.replace(/\D/g, '').slice(-4)}` : null,
+            bankVerificationStatus: t.bankVerificationStatus,
+            bankRejectReason: t.bankRejectReason,
         };
     }
     jobs(req) {
@@ -60,6 +67,9 @@ let TechnicianPortalController = class TechnicianPortalController {
     }
     settlements(req) {
         return this.orders.technicianListSettlements(req.technician.id);
+    }
+    requestPayout(req, settlementId) {
+        return this.orders.technicianRequestSettlementPayout(req.technician.id, settlementId);
     }
     materials(req) {
         void req.technician;
@@ -153,6 +163,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], TechnicianPortalController.prototype, "settlements", null);
+__decorate([
+    (0, common_1.Post)('technician/settlements/:settlementId/request-payout'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('settlementId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], TechnicianPortalController.prototype, "requestPayout", null);
 __decorate([
     (0, common_1.Get)('technician/materials'),
     __param(0, (0, common_1.Req)()),

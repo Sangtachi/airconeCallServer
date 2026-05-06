@@ -1,6 +1,18 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CreateMaterialDto, MemberSessionDto, RegisterMemberDto, RegisterSellerDto, UpdateMaterialDto } from './admin.dto';
+import {
+  CreateAirconAssetDto,
+  CreateMaterialDto,
+  CreateMemberAddressDto,
+  CreateOrderReviewDto,
+  MemberSessionDto,
+  RegisterMemberDto,
+  RegisterSellerDto,
+  UpdateAirconAssetDto,
+  UpdateMaterialDto,
+  UpdateMemberAddressDto,
+  UseCouponDto,
+} from './admin.dto';
 import { AdminService } from './admin.service';
 
 @ApiTags('auth-public')
@@ -36,6 +48,66 @@ export class MemberPublicController {
   @ApiOperation({ summary: '고객 대시보드: 회원 정보, 쿠폰, 문의 목록(Supabase)' })
   dashboard(@Param('id') id: string) {
     return this.admin.memberDashboard(id);
+  }
+
+  @Post(':id/addresses')
+  @ApiOperation({ summary: '고객 주소 등록(Supabase)' })
+  createAddress(@Param('id') id: string, @Body() dto: CreateMemberAddressDto) {
+    return this.admin.createMemberAddress(id, dto);
+  }
+
+  @Patch(':id/addresses/:addressId')
+  @ApiOperation({ summary: '고객 주소 수정(Supabase)' })
+  updateAddress(
+    @Param('id') id: string,
+    @Param('addressId') addressId: string,
+    @Body() dto: UpdateMemberAddressDto,
+  ) {
+    return this.admin.updateMemberAddress(id, addressId, dto);
+  }
+
+  @Delete(':id/addresses/:addressId')
+  @ApiOperation({ summary: '고객 주소 삭제(Supabase)' })
+  deleteAddress(@Param('id') id: string, @Param('addressId') addressId: string) {
+    return this.admin.deleteMemberAddress(id, addressId);
+  }
+
+  @Post(':id/assets')
+  @ApiOperation({ summary: '고객 에어컨 자산 등록(Supabase)' })
+  createAsset(@Param('id') id: string, @Body() dto: CreateAirconAssetDto) {
+    return this.admin.createAirconAsset(id, dto);
+  }
+
+  @Patch(':id/assets/:assetId')
+  @ApiOperation({ summary: '고객 에어컨 자산 수정(Supabase)' })
+  updateAsset(
+    @Param('id') id: string,
+    @Param('assetId') assetId: string,
+    @Body() dto: UpdateAirconAssetDto,
+  ) {
+    return this.admin.updateAirconAsset(id, assetId, dto);
+  }
+
+  @Delete(':id/assets/:assetId')
+  @ApiOperation({ summary: '고객 에어컨 자산 삭제(Supabase)' })
+  deleteAsset(@Param('id') id: string, @Param('assetId') assetId: string) {
+    return this.admin.deleteAirconAsset(id, assetId);
+  }
+
+  @Post(':id/coupons/:couponId/use')
+  @ApiOperation({ summary: '고객 쿠폰 사용 처리 + 리워드 로그(Supabase)' })
+  useCoupon(@Param('id') id: string, @Param('couponId') couponId: string, @Body() dto: UseCouponDto) {
+    return this.admin.useMemberCoupon(id, couponId, dto);
+  }
+
+  @Post(':id/orders/:orderId/review')
+  @ApiOperation({ summary: '고객 주문 리뷰 등록/수정(Supabase)' })
+  reviewOrder(
+    @Param('id') id: string,
+    @Param('orderId') orderId: string,
+    @Body() dto: CreateOrderReviewDto,
+  ) {
+    return this.admin.reviewMemberOrder(id, orderId, dto);
   }
 }
 

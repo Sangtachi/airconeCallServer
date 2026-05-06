@@ -40,6 +40,7 @@ export interface TechnicianSettlementListItem {
   platformFeeRate: number | null;
   status: string;
   paidAt: string | null;
+  payoutRequestedAt: string | null;
   createdAt: string;
 }
 
@@ -82,8 +83,15 @@ function settlementRowFromDb(r: Record<string, unknown>): TechnicianSettlementLi
     platformFeeRate: r.platform_fee_rate == null ? null : Number(r.platform_fee_rate),
     status: String(r.status ?? 'pending'),
     paidAt: r.paid_at == null ? null : String(r.paid_at),
+    payoutRequestedAt: r.payout_requested_at == null ? null : String(r.payout_requested_at),
     createdAt: String(r.created_at ?? new Date().toISOString()),
   };
+}
+
+function maskAccount(account: unknown): string | null {
+  const digits = String(account ?? '').replace(/\D/g, '');
+  if (digits.length < 4) return null;
+  return `${'*'.repeat(Math.max(0, digits.length - 4))}${digits.slice(-4)}`;
 }
 
 function materialRowFromDb(r: Record<string, unknown>): TechnicianMaterialListItem {
@@ -158,6 +166,7 @@ export class OrdersService {
       customerName,
       customerPhone,
       addressSummary,
+      userId: lead.userId ?? undefined,
       customerMemo: memoParts.join(' | '),
     });
     return this.createDraft(dto);
@@ -171,7 +180,7 @@ export class OrdersService {
     const row: CustomerOrderRow = {
       id: randomUUID(),
       orderNo: OrdersService.makeOrderNo(),
-      userId: null,
+      userId: dto.userId ?? null,
       productId: product.id,
       productCode: product.code,
       productName: product.name,
@@ -225,7 +234,7 @@ export class OrdersService {
       if (v === '' || v === null) {
         row.assignedTechnicianId = null;
       } else {
-        row.assignedTechnicianId = await this.requireApprovedTechnicianId(v);
+        row.assignedTechnicianId = await this.requireApprovedTechnicianId(v, row);
       }
     }
     if (dto.orderStatus !== undefined) {
@@ -244,17 +253,52 @@ export class OrdersService {
     return row;
   }
 
-  private async requireApprovedTechnicianId(technicianId: string): Promise<string> {
+  private async requireApprovedTechnicianId(technicianId: string, order?: CustomerOrderRow): Promise<string> {
     const id = technicianId.trim();
     if (!isUuid(id)) throw new BadRequestException('assignedTechnicianId must be an approved technician UUID');
     const { data, error } = await this.db()
       .from('technicians')
-      .select('id, status')
+      .select('*')
       .eq('id', id)
       .maybeSingle();
     if (error) throw new BadRequestException(error.message);
-    if (!data || String((data as { status?: string }).status) !== 'approved') {
+    const tech = data as Record<string, unknown> | null;
+    if (!tech || String(tech.status ?? '') !== 'approved') {
       throw new BadRequestException('assignedTechnicianId must reference an approved technician');
+    }
+    if (String(tech.work_status ?? 'available') === 'offline') {
+      throw new BadRequestException('assigned technician is offline');
+    }
+    if (order) {
+      const availabilityCode = order.scheduleType === 'same_day' ? 'same_day' : 'reservation';
+      const columnOk =
+        availabilityCode === 'same_day'
+          ? tech.available_same_day !== false
+          : tech.available_reservation !== false;
+      const avRows = await this.db()
+        .from('technician_availability')
+        .select('availability_code')
+        .eq('technician_id', id)
+        .eq('availability_code', availabilityCode)
+        .limit(1);
+      if (avRows.error) throw new BadRequestException(avRows.error.message);
+      if (!columnOk && (avRows.data?.length ?? 0) === 0) {
+        throw new BadRequestException(`assigned technician is not available for ${availabilityCode}`);
+      }
+      const regions = await this.db()
+        .from('technician_regions')
+        .select('region')
+        .eq('technician_id', id);
+      if (regions.error) throw new BadRequestException(regions.error.message);
+      const regionList = (regions.data ?? [])
+        .map((r) => String((r as { region?: string }).region ?? '').trim())
+        .filter(Boolean);
+      const baseRegion = String(tech.base_region ?? '').trim();
+      if (baseRegion) regionList.push(baseRegion);
+      const uniqueRegions = [...new Set(regionList)];
+      if (uniqueRegions.length > 0 && !uniqueRegions.some((region) => order.addressSummary.includes(region))) {
+        throw new BadRequestException('assigned technician is outside configured regions');
+      }
     }
     return id;
   }
@@ -344,11 +388,25 @@ export class OrdersService {
     const row = await this.getOrder(orderId);
     this.assertTechnicianAccess(row, technicianId);
     if (row.orderStatus !== 'working') throw new BadRequestException('order must be in working state');
+    await this.assertRequiredWorkPhotos(orderId);
     row.orderStatus = 'completed';
     row.updatedAt = new Date().toISOString();
     await this.store.replace(row);
     await this.upsertSettlementForCompletedJob(row, technicianId);
     return row;
+  }
+
+  private async assertRequiredWorkPhotos(orderId: string): Promise<void> {
+    const { data, error } = await this.db()
+      .from('order_photos')
+      .select('kind')
+      .eq('order_id', orderId)
+      .in('kind', ['before_work', 'after_work']);
+    if (error) throw new BadRequestException(error.message);
+    const kinds = new Set((data ?? []).map((r) => String((r as { kind?: string }).kind ?? '')));
+    if (!kinds.has('before_work') || !kinds.has('after_work')) {
+      throw new BadRequestException('작업 완료 전 작업 전/작업 후 사진을 각각 1장 이상 등록해야 합니다.');
+    }
   }
 
   /** 작업 완료 시 건별 정산 행 생성/갱신(Supabase). 수수료는 technicians.platform_fee_rate(기본 20%) 기준. */
@@ -424,6 +482,62 @@ export class OrdersService {
       const base = settlementRowFromDb(rec);
       return { ...base, orderNo: orderNoById.get(oid) ?? null };
     });
+  }
+
+  async technicianRequestSettlementPayout(technicianId: string, settlementId: string): Promise<TechnicianSettlementListItem> {
+    const sb = this.db();
+    const { data: row, error } = await sb
+      .from('order_settlements')
+      .select('*')
+      .eq('id', settlementId)
+      .eq('technician_id', technicianId)
+      .maybeSingle();
+    if (error) throw new BadRequestException(error.message);
+    if (!row) throw new NotFoundException('settlement not found');
+    const rec = row as Record<string, unknown>;
+    const status = String(rec.status ?? 'pending');
+    if (!['pending', 'held'].includes(status)) {
+      throw new BadRequestException('only pending or held settlements can request payout');
+    }
+    const { data: tech, error: techErr } = await sb
+      .from('technicians')
+      .select('bank_name,bank_account,bank_holder,bank_verification_status')
+      .eq('id', technicianId)
+      .maybeSingle();
+    if (techErr) throw new BadRequestException(techErr.message);
+    const techRec = (tech ?? {}) as Record<string, unknown>;
+    if (!techRec.bank_name || !techRec.bank_account || !techRec.bank_holder) {
+      throw new BadRequestException('정산 지급 요청 전 계좌 정보를 등록해야 합니다.');
+    }
+    if (String(techRec.bank_verification_status ?? 'unsubmitted') !== 'verified') {
+      throw new BadRequestException('관리자 계좌 검증 완료 후 정산 지급을 요청할 수 있습니다.');
+    }
+    const prevMemo = rec.memo == null ? '' : String(rec.memo);
+    const memo = [prevMemo, `technician payout requested at ${new Date().toISOString()}`].filter(Boolean).join('\n');
+    const { data: updated, error: upErr } = await sb
+      .from('order_settlements')
+      .update({
+        status: 'confirmed',
+        memo,
+        payout_requested_at: new Date().toISOString(),
+        payout_account_snapshot: {
+          bankName: String(techRec.bank_name),
+          bankHolder: String(techRec.bank_holder),
+          bankAccountMasked: maskAccount(techRec.bank_account),
+        },
+      })
+      .eq('id', settlementId)
+      .select('*')
+      .single();
+    if (upErr) throw new BadRequestException(upErr.message);
+    const updatedRec = updated as Record<string, unknown>;
+    let orderNo: string | null = null;
+    const oid = String(updatedRec.order_id ?? '');
+    if (oid) {
+      const { data: orderRow } = await sb.from('orders').select('order_no').eq('id', oid).maybeSingle();
+      orderNo = orderRow ? String((orderRow as { order_no?: string }).order_no ?? '') : null;
+    }
+    return { ...settlementRowFromDb(updatedRec), orderNo };
   }
 
   async technicianListMaterials(): Promise<TechnicianMaterialListItem[]> {

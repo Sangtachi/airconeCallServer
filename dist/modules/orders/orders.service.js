@@ -41,8 +41,15 @@ function settlementRowFromDb(r) {
         platformFeeRate: r.platform_fee_rate == null ? null : Number(r.platform_fee_rate),
         status: String(r.status ?? 'pending'),
         paidAt: r.paid_at == null ? null : String(r.paid_at),
+        payoutRequestedAt: r.payout_requested_at == null ? null : String(r.payout_requested_at),
         createdAt: String(r.created_at ?? new Date().toISOString()),
     };
+}
+function maskAccount(account) {
+    const digits = String(account ?? '').replace(/\D/g, '');
+    if (digits.length < 4)
+        return null;
+    return `${'*'.repeat(Math.max(0, digits.length - 4))}${digits.slice(-4)}`;
 }
 function materialRowFromDb(r) {
     return {
@@ -106,6 +113,7 @@ let OrdersService = OrdersService_1 = class OrdersService {
             customerName,
             customerPhone,
             addressSummary,
+            userId: lead.userId ?? undefined,
             customerMemo: memoParts.join(' | '),
         });
         return this.createDraft(dto);
@@ -117,7 +125,7 @@ let OrdersService = OrdersService_1 = class OrdersService {
         const row = {
             id: (0, node_crypto_1.randomUUID)(),
             orderNo: OrdersService_1.makeOrderNo(),
-            userId: null,
+            userId: dto.userId ?? null,
             productId: product.id,
             productCode: product.code,
             productName: product.name,
@@ -170,7 +178,7 @@ let OrdersService = OrdersService_1 = class OrdersService {
                 row.assignedTechnicianId = null;
             }
             else {
-                row.assignedTechnicianId = await this.requireApprovedTechnicianId(v);
+                row.assignedTechnicianId = await this.requireApprovedTechnicianId(v, row);
             }
         }
         if (dto.orderStatus !== undefined) {
@@ -188,19 +196,56 @@ let OrdersService = OrdersService_1 = class OrdersService {
         await this.store.replace(row);
         return row;
     }
-    async requireApprovedTechnicianId(technicianId) {
+    async requireApprovedTechnicianId(technicianId, order) {
         const id = technicianId.trim();
         if (!isUuid(id))
             throw new common_1.BadRequestException('assignedTechnicianId must be an approved technician UUID');
         const { data, error } = await this.db()
             .from('technicians')
-            .select('id, status')
+            .select('*')
             .eq('id', id)
             .maybeSingle();
         if (error)
             throw new common_1.BadRequestException(error.message);
-        if (!data || String(data.status) !== 'approved') {
+        const tech = data;
+        if (!tech || String(tech.status ?? '') !== 'approved') {
             throw new common_1.BadRequestException('assignedTechnicianId must reference an approved technician');
+        }
+        if (String(tech.work_status ?? 'available') === 'offline') {
+            throw new common_1.BadRequestException('assigned technician is offline');
+        }
+        if (order) {
+            const availabilityCode = order.scheduleType === 'same_day' ? 'same_day' : 'reservation';
+            const columnOk = availabilityCode === 'same_day'
+                ? tech.available_same_day !== false
+                : tech.available_reservation !== false;
+            const avRows = await this.db()
+                .from('technician_availability')
+                .select('availability_code')
+                .eq('technician_id', id)
+                .eq('availability_code', availabilityCode)
+                .limit(1);
+            if (avRows.error)
+                throw new common_1.BadRequestException(avRows.error.message);
+            if (!columnOk && (avRows.data?.length ?? 0) === 0) {
+                throw new common_1.BadRequestException(`assigned technician is not available for ${availabilityCode}`);
+            }
+            const regions = await this.db()
+                .from('technician_regions')
+                .select('region')
+                .eq('technician_id', id);
+            if (regions.error)
+                throw new common_1.BadRequestException(regions.error.message);
+            const regionList = (regions.data ?? [])
+                .map((r) => String(r.region ?? '').trim())
+                .filter(Boolean);
+            const baseRegion = String(tech.base_region ?? '').trim();
+            if (baseRegion)
+                regionList.push(baseRegion);
+            const uniqueRegions = [...new Set(regionList)];
+            if (uniqueRegions.length > 0 && !uniqueRegions.some((region) => order.addressSummary.includes(region))) {
+                throw new common_1.BadRequestException('assigned technician is outside configured regions');
+            }
         }
         return id;
     }
@@ -282,11 +327,25 @@ let OrdersService = OrdersService_1 = class OrdersService {
         this.assertTechnicianAccess(row, technicianId);
         if (row.orderStatus !== 'working')
             throw new common_1.BadRequestException('order must be in working state');
+        await this.assertRequiredWorkPhotos(orderId);
         row.orderStatus = 'completed';
         row.updatedAt = new Date().toISOString();
         await this.store.replace(row);
         await this.upsertSettlementForCompletedJob(row, technicianId);
         return row;
+    }
+    async assertRequiredWorkPhotos(orderId) {
+        const { data, error } = await this.db()
+            .from('order_photos')
+            .select('kind')
+            .eq('order_id', orderId)
+            .in('kind', ['before_work', 'after_work']);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        const kinds = new Set((data ?? []).map((r) => String(r.kind ?? '')));
+        if (!kinds.has('before_work') || !kinds.has('after_work')) {
+            throw new common_1.BadRequestException('작업 완료 전 작업 전/작업 후 사진을 각각 1장 이상 등록해야 합니다.');
+        }
     }
     async upsertSettlementForCompletedJob(order, technicianId) {
         const sb = this.db();
@@ -352,6 +411,65 @@ let OrdersService = OrdersService_1 = class OrdersService {
             const base = settlementRowFromDb(rec);
             return { ...base, orderNo: orderNoById.get(oid) ?? null };
         });
+    }
+    async technicianRequestSettlementPayout(technicianId, settlementId) {
+        const sb = this.db();
+        const { data: row, error } = await sb
+            .from('order_settlements')
+            .select('*')
+            .eq('id', settlementId)
+            .eq('technician_id', technicianId)
+            .maybeSingle();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        if (!row)
+            throw new common_1.NotFoundException('settlement not found');
+        const rec = row;
+        const status = String(rec.status ?? 'pending');
+        if (!['pending', 'held'].includes(status)) {
+            throw new common_1.BadRequestException('only pending or held settlements can request payout');
+        }
+        const { data: tech, error: techErr } = await sb
+            .from('technicians')
+            .select('bank_name,bank_account,bank_holder,bank_verification_status')
+            .eq('id', technicianId)
+            .maybeSingle();
+        if (techErr)
+            throw new common_1.BadRequestException(techErr.message);
+        const techRec = (tech ?? {});
+        if (!techRec.bank_name || !techRec.bank_account || !techRec.bank_holder) {
+            throw new common_1.BadRequestException('정산 지급 요청 전 계좌 정보를 등록해야 합니다.');
+        }
+        if (String(techRec.bank_verification_status ?? 'unsubmitted') !== 'verified') {
+            throw new common_1.BadRequestException('관리자 계좌 검증 완료 후 정산 지급을 요청할 수 있습니다.');
+        }
+        const prevMemo = rec.memo == null ? '' : String(rec.memo);
+        const memo = [prevMemo, `technician payout requested at ${new Date().toISOString()}`].filter(Boolean).join('\n');
+        const { data: updated, error: upErr } = await sb
+            .from('order_settlements')
+            .update({
+            status: 'confirmed',
+            memo,
+            payout_requested_at: new Date().toISOString(),
+            payout_account_snapshot: {
+                bankName: String(techRec.bank_name),
+                bankHolder: String(techRec.bank_holder),
+                bankAccountMasked: maskAccount(techRec.bank_account),
+            },
+        })
+            .eq('id', settlementId)
+            .select('*')
+            .single();
+        if (upErr)
+            throw new common_1.BadRequestException(upErr.message);
+        const updatedRec = updated;
+        let orderNo = null;
+        const oid = String(updatedRec.order_id ?? '');
+        if (oid) {
+            const { data: orderRow } = await sb.from('orders').select('order_no').eq('id', oid).maybeSingle();
+            orderNo = orderRow ? String(orderRow.order_no ?? '') : null;
+        }
+        return { ...settlementRowFromDb(updatedRec), orderNo };
     }
     async technicianListMaterials() {
         const { data, error } = await this.db()

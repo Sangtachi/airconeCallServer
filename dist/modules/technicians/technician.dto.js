@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TechnicianOrderPhotoDto = exports.TechnicianSessionDto = exports.TechnicianSignupDto = exports.TechnicianDocumentInputDto = exports.TechnicianCapabilityInputDto = void 0;
+exports.TechnicianOrderPhotoDto = exports.TechnicianDocumentPresignDto = exports.TechnicianSessionDto = exports.TechnicianSignupDto = exports.TechnicianDocumentInputDto = exports.TechnicianCapabilityInputDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
@@ -159,6 +159,20 @@ __decorate([
     (0, class_validator_1.MinLength)(5),
     __metadata("design:type", String)
 ], TechnicianSessionDto.prototype, "password", void 0);
+class TechnicianDocumentPresignDto {
+}
+exports.TechnicianDocumentPresignDto = TechnicianDocumentPresignDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: ['id_card', 'business_license', 'career', 'insurance', 'bankbook', 'other'] }),
+    (0, class_validator_1.IsIn)(['id_card', 'business_license', 'career', 'insurance', 'bankbook', 'other']),
+    __metadata("design:type", String)
+], TechnicianDocumentPresignDto.prototype, "documentType", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TechnicianDocumentPresignDto.prototype, "mimeType", void 0);
 class TechnicianOrderPhotoDto {
 }
 exports.TechnicianOrderPhotoDto = TechnicianOrderPhotoDto;
