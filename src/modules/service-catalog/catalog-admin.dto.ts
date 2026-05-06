@@ -183,11 +183,21 @@ export class CreateServiceAddonDto {
   @IsString()
   unit?: string;
 
+  @ApiProperty()
+  @IsInt()
+  @Min(0)
+  customerPrice!: number;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsInt()
   @Min(0)
-  customerPrice?: number;
+  technicianCostAllowance?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  platformFeeRate?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()

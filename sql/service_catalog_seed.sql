@@ -1,4 +1,5 @@
--- Seed data aligned with aircon_install_cleaning spec (prices for install fixed; cleaning TBD)
+-- Seed data aligned with aircon_install_cleaning spec.
+-- 청소/추가금은 운영 전 임시 가격이며 관리자 CRUD에서 DB 기준으로 조정합니다.
 -- Run after service_catalog_schema.sql
 
 INSERT INTO service_categories (id, name, code, sort_order, is_active)
@@ -60,9 +61,9 @@ VALUES
     'clean_wall_v1',
     'cleaning',
     'wall',
+    70000, 20000, 90000,
     0, 0, 0,
-    0, 0, 0,
-    '가격 추후 확정 — 구조만 선반영',
+    '분해 세척 기본가 — 임시 운영 가격',
     TRUE,
     40
   ),
@@ -73,9 +74,9 @@ VALUES
     'clean_stand_v1',
     'cleaning',
     'stand',
+    110000, 20000, 130000,
     0, 0, 0,
-    0, 0, 0,
-    NULL,
+    '스탠드 에어컨 분해 세척 — 임시 운영 가격',
     TRUE,
     50
   ),
@@ -86,9 +87,9 @@ VALUES
     'clean_two_in_one_v1',
     'cleaning',
     'two_in_one',
+    160000, 30000, 190000,
     0, 0, 0,
-    0, 0, 0,
-    NULL,
+    '벽걸이+스탠드 세트 세척 — 임시 운영 가격',
     TRUE,
     60
   ),
@@ -99,9 +100,9 @@ VALUES
     'clean_system_v1',
     'cleaning',
     'system',
+    120000, 30000, 150000,
     0, 0, 0,
-    0, 0, 0,
-    NULL,
+    '시스템 에어컨 1대 기준 세척 — 임시 운영 가격',
     TRUE,
     70
   )
@@ -109,11 +110,11 @@ ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO service_addons (id, name, code, unit, customer_price, technician_cost_allowance, platform_fee_rate, description, is_active, sort_order)
 VALUES
-  ('c3000001-0000-4000-8000-000000000001', '배관 추가', 'addon_pipe_meter', 'meter', NULL, NULL, NULL, '1m당 — 가격 추후 입력', TRUE, 10),
-  ('c3000001-0000-4000-8000-000000000002', '배수호스 추가', 'addon_drain_hose_meter', 'meter', NULL, NULL, NULL, NULL, TRUE, 20),
-  ('c3000001-0000-4000-8000-000000000003', '전선 추가', 'addon_wire_meter', 'meter', NULL, NULL, NULL, NULL, TRUE, 30),
-  ('c3000001-0000-4000-8000-000000000004', '타공 추가', 'addon_extra_hole', 'each', NULL, NULL, NULL, NULL, TRUE, 40),
-  ('c3000001-0000-4000-8000-000000000005', '앵글 설치', 'addon_angle_bracket', 'each', NULL, NULL, NULL, NULL, TRUE, 50),
-  ('c3000001-0000-4000-8000-000000000006', '실외기 위험작업', 'addon_outdoor_hazard', 'job', NULL, NULL, NULL, NULL, TRUE, 60),
-  ('c3000001-0000-4000-8000-000000000007', '고층/사다리 작업', 'addon_high_ladder', 'job', NULL, NULL, NULL, NULL, TRUE, 70)
+  ('c3000001-0000-4000-8000-000000000001', '배관 추가', 'addon_pipe_meter', 'meter', 18000, 12000, 0.2, '1m당 임시 운영가', TRUE, 10),
+  ('c3000001-0000-4000-8000-000000000002', '배수호스 추가', 'addon_drain_hose_meter', 'meter', 6000, 4000, 0.2, '1m당 임시 운영가', TRUE, 20),
+  ('c3000001-0000-4000-8000-000000000003', '전선 추가', 'addon_wire_meter', 'meter', 7000, 5000, 0.2, '1m당 임시 운영가', TRUE, 30),
+  ('c3000001-0000-4000-8000-000000000004', '타공 추가', 'addon_extra_hole', 'each', 30000, 20000, 0.2, '벽/콘크리트 상황별 추가 타공', TRUE, 40),
+  ('c3000001-0000-4000-8000-000000000005', '앵글 설치', 'addon_angle_bracket', 'each', 80000, 60000, 0.18, '실외기 앵글 설치 임시 운영가', TRUE, 50),
+  ('c3000001-0000-4000-8000-000000000006', '실외기 위험작업', 'addon_outdoor_hazard', 'job', 50000, 35000, 0.2, '난간/외벽 등 위험 작업 가산', TRUE, 60),
+  ('c3000001-0000-4000-8000-000000000007', '고층/사다리 작업', 'addon_high_ladder', 'job', 70000, 50000, 0.18, '고층/사다리 필요 작업 가산', TRUE, 70)
 ON CONFLICT (code) DO NOTHING;

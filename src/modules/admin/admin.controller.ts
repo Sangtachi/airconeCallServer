@@ -22,6 +22,7 @@ import {
   ConfirmSettlementDto,
   CreateBookingDto,
   CreateCouponDto,
+  CreateMaterialDto,
   CreateMemberDto,
   CreateSellerDto,
   CreateTechnicianDto,
@@ -29,6 +30,7 @@ import {
   UpdateBookingDto,
   UpdateBookingStatusDto,
   UpdateCouponDto,
+  UpdateMaterialDto,
   UpdateMemberDto,
   UpdateSellerDto,
   UpdateOnboardingDto,
@@ -185,6 +187,30 @@ export class AdminController {
   @AdminRoles('ops_admin')
   deleteTechnician(@Param('id') id: string) {
     return this.technicians.deleteByAdmin(id);
+  }
+
+  @Get('materials')
+  @AdminRoles('ops_admin')
+  getMaterials() {
+    return this.service.getMaterials();
+  }
+
+  @Post('materials')
+  @AdminRoles('ops_admin')
+  createMaterial(@Body() dto: CreateMaterialDto) {
+    return this.service.createMaterial(dto);
+  }
+
+  @Patch('materials/:id')
+  @AdminRoles('ops_admin')
+  updateMaterial(@Param('id') id: string, @Body() dto: UpdateMaterialDto) {
+    return this.service.updateMaterial(id, dto);
+  }
+
+  @Delete('materials/:id')
+  @AdminRoles('ops_admin')
+  deleteMaterial(@Param('id') id: string) {
+    return this.service.deleteMaterial(id);
   }
 
   @Get('payments')

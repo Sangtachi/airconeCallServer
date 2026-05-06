@@ -96,6 +96,18 @@ let SellerPublicController = class SellerPublicController {
     dashboard(id) {
         return this.admin.sellerDashboard(id);
     }
+    materials(id) {
+        return this.admin.sellerMaterials(id);
+    }
+    createMaterial(id, dto) {
+        return this.admin.createSellerMaterial(id, dto);
+    }
+    updateMaterial(id, materialId, dto) {
+        return this.admin.updateSellerMaterial(id, materialId, dto);
+    }
+    deleteMaterial(id, materialId) {
+        return this.admin.deleteSellerMaterial(id, materialId);
+    }
 };
 exports.SellerPublicController = SellerPublicController;
 __decorate([
@@ -122,6 +134,42 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], SellerPublicController.prototype, "dashboard", null);
+__decorate([
+    (0, common_1.Get)(':id/materials'),
+    (0, swagger_1.ApiOperation)({ summary: '판매자 자재/공급가 목록(Supabase materials)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], SellerPublicController.prototype, "materials", null);
+__decorate([
+    (0, common_1.Post)(':id/materials'),
+    (0, swagger_1.ApiOperation)({ summary: '판매자 자재/공급가 등록(Supabase materials)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, admin_dto_1.CreateMaterialDto]),
+    __metadata("design:returntype", void 0)
+], SellerPublicController.prototype, "createMaterial", null);
+__decorate([
+    (0, common_1.Patch)(':id/materials/:materialId'),
+    (0, swagger_1.ApiOperation)({ summary: '판매자 자재/공급가 수정(Supabase materials)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('materialId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, admin_dto_1.UpdateMaterialDto]),
+    __metadata("design:returntype", void 0)
+], SellerPublicController.prototype, "updateMaterial", null);
+__decorate([
+    (0, common_1.Delete)(':id/materials/:materialId'),
+    (0, swagger_1.ApiOperation)({ summary: '판매자 자재/공급가 비활성화(Supabase materials)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('materialId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], SellerPublicController.prototype, "deleteMaterial", null);
 exports.SellerPublicController = SellerPublicController = __decorate([
     (0, swagger_1.ApiTags)('sellers-public'),
     (0, common_1.Controller)('sellers'),

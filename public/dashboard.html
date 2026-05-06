@@ -242,36 +242,118 @@
       }
 
       async function renderSeller() {
-        setShell('seller', '판매자는 판매자 신청 상태와 공급 품목 정보만 확인합니다.');
+        setShell('seller', '판매자는 신청 상태와 공급 품목, 자재/판매가를 DB 기준으로 관리합니다.');
         topActions.innerHTML = '';
         const data = await api(`/api/sellers/${encodeURIComponent(session.id)}/dashboard`);
         const seller = data.seller;
+        const materials = data.materials || [];
         summary.innerHTML = [
           metric('상태', seller.status),
           metric('상호명', seller.companyName),
           metric('취급 품목', seller.productCategory || '-'),
-          metric('담당자', seller.ownerName),
+          metric('등록 공급가', materials.length),
         ].join('');
         workspace.innerHTML = `
           <aside class="panel">
             <h2>판매자 권한 범위</h2>
             <ul class="scope-list">
-              <li><strong>표시</strong><span>판매자 정보만</span></li>
+              <li><strong>표시</strong><span>판매자 정보와 공급가</span></li>
               <li><strong>숨김</strong><span>고객, 기사, 관리자 메뉴</span></li>
               <li><strong>상태</strong><span>${escapeHtml(seller.status)}</span></li>
             </ul>
           </aside>
-          <section class="panel">
-            <h2>판매자 정보</h2>
-            ${table([seller], [
-              { label: '담당자', key: 'ownerName' },
-              { label: '전화번호', key: 'phone' },
-              { label: '상호명', key: 'companyName' },
-              { label: '사업자번호', key: 'businessNumber' },
-              { label: '메모', key: 'memo' },
-            ])}
+          <section class="stack">
+            <div class="panel">
+              <h2>판매자 정보</h2>
+              ${table([seller], [
+                { label: '담당자', key: 'ownerName' },
+                { label: '전화번호', key: 'phone' },
+                { label: '상호명', key: 'companyName' },
+                { label: '사업자번호', key: 'businessNumber' },
+                { label: '메모', key: 'memo' },
+              ])}
+            </div>
+            <div class="panel">
+              <h2>자재/판매가 등록</h2>
+              <form id="sellerMaterialForm">
+                <div class="row">
+                  <label>자재/상품명<input name="name" required /></label>
+                  <label>코드<input name="code" required placeholder="seller_unique_code" /></label>
+                </div>
+                <div class="row">
+                  <label>카테고리<input name="category" placeholder="pipe, bracket, labor" /></label>
+                  <label>단위<input name="unit" placeholder="each, meter, job" /></label>
+                </div>
+                <div class="row">
+                  <label>고객가<input name="customerPrice" type="number" min="0" required /></label>
+                  <label>기사 인정 원가<input name="technicianCostAllowance" type="number" min="0" /></label>
+                </div>
+                <div class="row">
+                  <label>수수료율<input name="platformFeeRate" type="number" min="0" max="1" step="0.01" placeholder="0.2" /></label>
+                  <label>OEM 가능<select name="oemAvailable"><option value="false">아니오</option><option value="true">예</option></select></label>
+                </div>
+                <button class="btn primary" type="submit">공급가 등록</button>
+              </form>
+            </div>
+            <div class="panel">
+              <h2>등록한 자재/판매가</h2>
+              ${table(materials, [
+                { label: '품목', key: 'name' },
+                { label: '코드', key: 'code' },
+                { label: '고객가', render: (r) => Number(r.customerPrice || 0).toLocaleString('ko-KR') },
+                { label: '기사 원가', render: (r) => Number(r.technicianCostAllowance || 0).toLocaleString('ko-KR') },
+                { label: '상태', render: (r) => r.isActive ? '사용' : '비활성' },
+                { label: '동작', html: true, render: (r) => `<button class="btn" data-material-edit="${escapeHtml(r.id)}">가격수정</button> <button class="btn danger" data-material-delete="${escapeHtml(r.id)}">비활성</button>` },
+              ], '등록한 공급가가 없습니다.')}
+            </div>
           </section>
         `;
+        document.getElementById('sellerMaterialForm').addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const fd = new FormData(event.currentTarget);
+          await api(`/api/sellers/${encodeURIComponent(session.id)}/materials`, {
+            method: 'POST',
+            body: JSON.stringify({
+              name: String(fd.get('name') || '').trim(),
+              code: String(fd.get('code') || '').trim(),
+              category: String(fd.get('category') || '').trim() || 'seller',
+              unit: String(fd.get('unit') || '').trim() || 'each',
+              customerPrice: Number(fd.get('customerPrice') || 0),
+              technicianCostAllowance: fd.get('technicianCostAllowance') ? Number(fd.get('technicianCostAllowance')) : undefined,
+              platformFeeRate: fd.get('platformFeeRate') ? Number(fd.get('platformFeeRate')) : undefined,
+              oemAvailable: fd.get('oemAvailable') === 'true',
+            }),
+          });
+          await renderSeller();
+        });
+        workspace.querySelectorAll('[data-material-edit]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const row = materials.find((m) => m.id === btn.dataset.materialEdit);
+            if (!row) return;
+            const price = prompt('고객가를 입력하세요.', row.customerPrice ?? 0);
+            if (price === null) return;
+            const cost = prompt('기사 인정 원가를 입력하세요.', row.technicianCostAllowance ?? '');
+            const fee = prompt('플랫폼 수수료율(0~1)을 입력하세요.', row.platformFeeRate ?? '');
+            await api(`/api/sellers/${encodeURIComponent(session.id)}/materials/${encodeURIComponent(row.id)}`, {
+              method: 'PATCH',
+              body: JSON.stringify({
+                customerPrice: Number(price),
+                technicianCostAllowance: cost === '' ? undefined : Number(cost),
+                platformFeeRate: fee === '' ? undefined : Number(fee),
+              }),
+            });
+            await renderSeller();
+          });
+        });
+        workspace.querySelectorAll('[data-material-delete]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('이 공급가를 비활성화할까요?')) return;
+            await api(`/api/sellers/${encodeURIComponent(session.id)}/materials/${encodeURIComponent(btn.dataset.materialDelete)}`, {
+              method: 'DELETE',
+            });
+            await renderSeller();
+          });
+        });
       }
 
       function technicianHeaders() {

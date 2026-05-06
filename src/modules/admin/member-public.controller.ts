@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { MemberSessionDto, RegisterMemberDto, RegisterSellerDto } from './admin.dto';
+import { CreateMaterialDto, MemberSessionDto, RegisterMemberDto, RegisterSellerDto, UpdateMaterialDto } from './admin.dto';
 import { AdminService } from './admin.service';
 
 @ApiTags('auth-public')
@@ -60,5 +60,33 @@ export class SellerPublicController {
   @ApiOperation({ summary: '판매자 대시보드: 판매자 신청/검토 상태(Supabase)' })
   dashboard(@Param('id') id: string) {
     return this.admin.sellerDashboard(id);
+  }
+
+  @Get(':id/materials')
+  @ApiOperation({ summary: '판매자 자재/공급가 목록(Supabase materials)' })
+  materials(@Param('id') id: string) {
+    return this.admin.sellerMaterials(id);
+  }
+
+  @Post(':id/materials')
+  @ApiOperation({ summary: '판매자 자재/공급가 등록(Supabase materials)' })
+  createMaterial(@Param('id') id: string, @Body() dto: CreateMaterialDto) {
+    return this.admin.createSellerMaterial(id, dto);
+  }
+
+  @Patch(':id/materials/:materialId')
+  @ApiOperation({ summary: '판매자 자재/공급가 수정(Supabase materials)' })
+  updateMaterial(
+    @Param('id') id: string,
+    @Param('materialId') materialId: string,
+    @Body() dto: UpdateMaterialDto,
+  ) {
+    return this.admin.updateSellerMaterial(id, materialId, dto);
+  }
+
+  @Delete(':id/materials/:materialId')
+  @ApiOperation({ summary: '판매자 자재/공급가 비활성화(Supabase materials)' })
+  deleteMaterial(@Param('id') id: string, @Param('materialId') materialId: string) {
+    return this.admin.deleteSellerMaterial(id, materialId);
   }
 }

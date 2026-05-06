@@ -23,6 +23,7 @@ import {
   ConfirmSettlementDto,
   CreateBookingDto,
   CreateCouponDto,
+  CreateMaterialDto,
   CreateMemberDto,
   CreateSellerDto,
   RegisterMemberDto,
@@ -30,6 +31,7 @@ import {
   UpdateBookingDto,
   UpdateBookingStatusDto,
   UpdateCouponDto,
+  UpdateMaterialDto,
   UpdateMemberDto,
   UpdateSellerDto,
   UpdateSettlementStatusDto,
@@ -116,6 +118,93 @@ function sellerFromRow(row: Record<string, unknown>) {
     productCategory: str(row.product_category),
     status: String(row.status ?? 'pending'),
     memo: str(row.memo),
+    createdAt: String(row.created_at ?? new Date().toISOString()),
+    updatedAt: String(row.updated_at ?? new Date().toISOString()),
+  };
+}
+
+function materialFromRow(row: Record<string, unknown>) {
+  return {
+    id: String(row.id),
+    name: String(row.name ?? ''),
+    code: String(row.code ?? ''),
+    category: String(row.category ?? 'general'),
+    unit: String(row.unit ?? 'each'),
+    customerPrice: row.customer_price == null ? null : Number(row.customer_price),
+    technicianCostAllowance:
+      row.technician_cost_allowance == null ? null : Number(row.technician_cost_allowance),
+    platformFeeRate: row.platform_fee_rate == null ? null : Number(row.platform_fee_rate),
+    oemAvailable: Boolean(row.oem_available),
+    supplierName: str(row.supplier_name),
+    isActive: row.is_active !== false,
+    createdAt: String(row.created_at ?? new Date().toISOString()),
+    updatedAt: String(row.updated_at ?? new Date().toISOString()),
+  };
+}
+
+function addressFromRow(row: Record<string, unknown>) {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    address: String(row.address ?? ''),
+    detailAddress: str(row.detail_address),
+    sido: str(row.sido),
+    sigungu: str(row.sigungu),
+    dong: str(row.dong),
+    latitude: row.latitude == null ? null : Number(row.latitude),
+    longitude: row.longitude == null ? null : Number(row.longitude),
+    isDefault: Boolean(row.is_default),
+    createdAt: String(row.created_at ?? new Date().toISOString()),
+    updatedAt: String(row.updated_at ?? new Date().toISOString()),
+  };
+}
+
+function airconAssetFromRow(row: Record<string, unknown>) {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    addressId: str(row.address_id),
+    type: String(row.type ?? 'unknown'),
+    brand: str(row.brand),
+    modelName: str(row.model_name),
+    installedYear: row.installed_year == null ? null : Number(row.installed_year),
+    indoorPhotoUrl: str(row.indoor_photo_url),
+    outdoorPhotoUrl: str(row.outdoor_photo_url),
+    remotePhotoUrl: str(row.remote_photo_url),
+    memo: str(row.memo),
+    createdAt: String(row.created_at ?? new Date().toISOString()),
+    updatedAt: String(row.updated_at ?? new Date().toISOString()),
+  };
+}
+
+function rewardLogFromRow(row: Record<string, unknown>) {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    actionType: String(row.action_type ?? ''),
+    rewardType: String(row.reward_type ?? ''),
+    amount: Number(row.amount ?? 0),
+    status: String(row.status ?? 'created'),
+    referenceId: str(row.reference_id),
+    payload: row.payload ?? null,
+    createdAt: String(row.created_at ?? new Date().toISOString()),
+  };
+}
+
+function customerOrderFromRow(row: Record<string, unknown>) {
+  return {
+    id: String(row.id),
+    orderNo: String(row.order_no ?? ''),
+    productName: String(row.product_name_snap ?? ''),
+    productCode: String(row.product_code_snap ?? ''),
+    serviceType: String(row.service_type ?? ''),
+    airconType: String(row.aircon_type ?? ''),
+    orderStatus: String(row.order_status ?? ''),
+    paymentStatus: String(row.payment_status ?? ''),
+    totalPrice: Number(row.total_price ?? 0),
+    addressSummary: String(row.address_summary ?? ''),
+    desiredDate: str(row.desired_date),
+    desiredTimeSlot: str(row.desired_time_slot),
     createdAt: String(row.created_at ?? new Date().toISOString()),
     updatedAt: String(row.updated_at ?? new Date().toISOString()),
   };
@@ -431,7 +520,7 @@ export class AdminService {
       throw new UnauthorizedException('고객 대시보드 계정이 아닙니다.');
     }
     const sb = this.db();
-    const [couponsRes, inquiriesRes] = await Promise.all([
+    const [couponsRes, inquiriesRes, addressesRes, assetsRes, rewardsRes, ordersRes] = await Promise.all([
       sb
         .from('coupons')
         .select('*')
@@ -443,12 +532,43 @@ export class AdminService {
         .or(`user_id.eq.${member.id},customer_phone.eq.${member.phone}`)
         .order('created_at', { ascending: false })
         .limit(20),
+      sb
+        .from('user_addresses')
+        .select('*')
+        .eq('user_id', member.id)
+        .order('is_default', { ascending: false })
+        .order('created_at', { ascending: false }),
+      sb
+        .from('aircon_assets')
+        .select('*')
+        .eq('user_id', member.id)
+        .order('created_at', { ascending: false }),
+      sb
+        .from('reward_logs')
+        .select('*')
+        .eq('user_id', member.id)
+        .order('created_at', { ascending: false })
+        .limit(50),
+      sb
+        .from('orders')
+        .select('id,order_no,product_name_snap,product_code_snap,service_type,aircon_type,order_status,payment_status,total_price,address_summary,desired_date,desired_time_slot,created_at,updated_at')
+        .or(`user_id.eq.${member.id},customer_phone.eq.${member.phone}`)
+        .order('created_at', { ascending: false })
+        .limit(30),
     ]);
     if (couponsRes.error) throw new BadRequestException(couponsRes.error.message);
     if (inquiriesRes.error) throw new BadRequestException(inquiriesRes.error.message);
+    if (addressesRes.error) throw new BadRequestException(addressesRes.error.message);
+    if (assetsRes.error) throw new BadRequestException(assetsRes.error.message);
+    if (rewardsRes.error) throw new BadRequestException(rewardsRes.error.message);
+    if (ordersRes.error) throw new BadRequestException(ordersRes.error.message);
     return {
       member,
       coupons: ((couponsRes.data ?? []) as Record<string, unknown>[]).map(couponFromRow),
+      rewardLogs: ((rewardsRes.data ?? []) as Record<string, unknown>[]).map(rewardLogFromRow),
+      addresses: ((addressesRes.data ?? []) as Record<string, unknown>[]).map(addressFromRow),
+      airconAssets: ((assetsRes.data ?? []) as Record<string, unknown>[]).map(airconAssetFromRow),
+      orders: ((ordersRes.data ?? []) as Record<string, unknown>[]).map(customerOrderFromRow),
       inquiries: ((inquiriesRes.data ?? []) as Record<string, unknown>[]).map((r) => ({
         id: String(r.id),
         location: str(r.location_text),
@@ -537,7 +657,8 @@ export class AdminService {
     const seller = sellerFromRow(data as Record<string, unknown>);
     return {
       seller,
-      scope: ['판매자 신청 상태', '회사/담당자 정보', '취급 품목'],
+      materials: await this.sellerMaterials(id),
+      scope: ['판매자 신청 상태', '회사/담당자 정보', '취급 품목', '자재/공급가'],
     };
   }
 
@@ -637,6 +758,136 @@ export class AdminService {
     if (error) throw new BadRequestException(error.message);
     await this.audit('delete_seller', 'seller_applications', id);
     return { id, deleted: true };
+  }
+
+  async getMaterials() {
+    const { data, error } = await this.db()
+      .from('materials')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw new BadRequestException(error.message);
+    return ((data ?? []) as Record<string, unknown>[]).map(materialFromRow);
+  }
+
+  async createMaterial(dto: CreateMaterialDto) {
+    const { data, error } = await this.db()
+      .from('materials')
+      .insert({
+        name: dto.name.trim(),
+        code: dto.code.trim(),
+        category: dto.category?.trim() || 'general',
+        unit: dto.unit?.trim() || 'each',
+        customer_price: dto.customerPrice ?? null,
+        technician_cost_allowance: dto.technicianCostAllowance ?? null,
+        platform_fee_rate: dto.platformFeeRate ?? null,
+        supplier_name: dto.supplierName?.trim() || null,
+        oem_available: dto.oemAvailable ?? false,
+        is_active: true,
+      })
+      .select('*')
+      .single();
+    if (error) throw new BadRequestException(error.message);
+    const material = materialFromRow(data as Record<string, unknown>);
+    await this.audit('create_material', 'materials', material.id, dto);
+    return material;
+  }
+
+  async updateMaterial(id: string, dto: UpdateMaterialDto) {
+    const patch: Record<string, unknown> = {};
+    if (dto.name !== undefined) patch.name = dto.name.trim();
+    if (dto.category !== undefined) patch.category = dto.category.trim() || 'general';
+    if (dto.unit !== undefined) patch.unit = dto.unit.trim() || 'each';
+    if (dto.customerPrice !== undefined) patch.customer_price = dto.customerPrice;
+    if (dto.technicianCostAllowance !== undefined) patch.technician_cost_allowance = dto.technicianCostAllowance;
+    if (dto.platformFeeRate !== undefined) patch.platform_fee_rate = dto.platformFeeRate;
+    if (dto.supplierName !== undefined) patch.supplier_name = dto.supplierName.trim() || null;
+    if (dto.oemAvailable !== undefined) patch.oem_available = dto.oemAvailable;
+    if (dto.isActive !== undefined) patch.is_active = dto.isActive;
+    const { data, error } = await this.db()
+      .from('materials')
+      .update(patch)
+      .eq('id', requireUuid(id, 'material id'))
+      .select('*')
+      .single();
+    if (error) throw new BadRequestException(error.message);
+    const material = materialFromRow(data as Record<string, unknown>);
+    await this.audit('update_material', 'materials', id, dto);
+    return material;
+  }
+
+  async deleteMaterial(id: string) {
+    const { error } = await this.db()
+      .from('materials')
+      .update({ is_active: false })
+      .eq('id', requireUuid(id, 'material id'));
+    if (error) throw new BadRequestException(error.message);
+    await this.audit('delete_material', 'materials', id, { soft: true });
+    return { id, deleted: true, softDeleted: true };
+  }
+
+  private async sellerById(id: string) {
+    const { data, error } = await this.db()
+      .from('seller_applications')
+      .select('*')
+      .eq('id', requireUuid(id, 'seller id'))
+      .maybeSingle();
+    if (error) throw new BadRequestException(error.message);
+    if (!data) throw new NotFoundException('seller not found');
+    return sellerFromRow(data as Record<string, unknown>);
+  }
+
+  async sellerMaterials(sellerId: string) {
+    const seller = await this.sellerById(sellerId);
+    const { data, error } = await this.db()
+      .from('materials')
+      .select('*')
+      .eq('supplier_name', seller.companyName)
+      .order('created_at', { ascending: false });
+    if (error) throw new BadRequestException(error.message);
+    return ((data ?? []) as Record<string, unknown>[]).map(materialFromRow);
+  }
+
+  async createSellerMaterial(sellerId: string, dto: CreateMaterialDto) {
+    const seller = await this.sellerById(sellerId);
+    const material = await this.createMaterial({
+      ...dto,
+      supplierName: seller.companyName,
+    });
+    await this.audit('seller_create_material', 'materials', material.id, {
+      sellerId,
+      supplierName: seller.companyName,
+      code: dto.code,
+    });
+    return material;
+  }
+
+  async updateSellerMaterial(sellerId: string, materialId: string, dto: UpdateMaterialDto) {
+    const seller = await this.sellerById(sellerId);
+    const { data: before, error } = await this.db()
+      .from('materials')
+      .select('id,supplier_name')
+      .eq('id', requireUuid(materialId, 'material id'))
+      .maybeSingle();
+    if (error) throw new BadRequestException(error.message);
+    if (!before) throw new NotFoundException('material not found');
+    if (String((before as { supplier_name?: string | null }).supplier_name ?? '') !== seller.companyName) {
+      throw new UnauthorizedException('해당 판매자 공급가가 아닙니다.');
+    }
+    const material = await this.updateMaterial(materialId, {
+      ...dto,
+      supplierName: seller.companyName,
+    });
+    await this.audit('seller_update_material', 'materials', materialId, {
+      sellerId,
+      supplierName: seller.companyName,
+    });
+    return material;
+  }
+
+  async deleteSellerMaterial(sellerId: string, materialId: string) {
+    await this.updateSellerMaterial(sellerId, materialId, { isActive: false });
+    await this.audit('seller_delete_material', 'materials', materialId, { sellerId, soft: true });
+    return { id: materialId, deleted: true, softDeleted: true };
   }
 
   async getBookings(): Promise<Booking[]> {

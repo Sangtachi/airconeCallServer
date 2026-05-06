@@ -83,6 +83,18 @@ let AdminController = class AdminController {
     deleteTechnician(id) {
         return this.technicians.deleteByAdmin(id);
     }
+    getMaterials() {
+        return this.service.getMaterials();
+    }
+    createMaterial(dto) {
+        return this.service.createMaterial(dto);
+    }
+    updateMaterial(id, dto) {
+        return this.service.updateMaterial(id, dto);
+    }
+    deleteMaterial(id) {
+        return this.service.deleteMaterial(id);
+    }
     getPayments() { return this.service.getPayments(); }
     cancelPayment(id, dto, idempotencyKey) {
         return this.service.cancelPayment(id, dto, idempotencyKey);
@@ -330,6 +342,38 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "deleteTechnician", null);
+__decorate([
+    (0, common_1.Get)('materials'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getMaterials", null);
+__decorate([
+    (0, common_1.Post)('materials'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [admin_dto_1.CreateMaterialDto]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "createMaterial", null);
+__decorate([
+    (0, common_1.Patch)('materials/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, admin_dto_1.UpdateMaterialDto]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "updateMaterial", null);
+__decorate([
+    (0, common_1.Delete)('materials/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "deleteMaterial", null);
 __decorate([
     (0, common_1.Get)('payments'),
     (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'finance_admin'),

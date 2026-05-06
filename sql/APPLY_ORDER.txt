@@ -9,6 +9,7 @@ Supabase(또는 Postgres) 적용 순서 — 위에서 아래로 실행하세요.
 3) orders_payments_settlements.sql — 주문·결제·정산(함수 정의 + 트리거 포함)
 
 4) extras_materials_dispatch.sql — 자재·추가금·배차(파일 시작부에 함수도 다시 멱등 정의함)
+4-1) service_catalog_price_patch.sql — 기존 DB에 이미 들어간 청소/추가금 0원·NULL 가격을 임시 운영가로 업데이트하고 자재 기본 row를 추가
 
 5) technicians_and_order_photos.sql — 기사(capabilities)·작업 전후 사진(Phase 3)
 
