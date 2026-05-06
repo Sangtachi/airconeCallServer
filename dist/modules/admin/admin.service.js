@@ -234,7 +234,7 @@ let AdminService = class AdminService {
         const { data, error } = await sb
             .from('members')
             .upsert({
-            name: dto.name?.trim() || 'Airconecall 고객',
+            name: dto.name?.trim() || 'ACnow 고객',
             phone,
             role: 'customer',
             status: 'active',

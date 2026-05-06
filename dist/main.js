@@ -33,11 +33,11 @@ async function bootstrap() {
     const staticAllowList = isProd && !localRelaxCors
         ? envOrigins.length > 0
             ? [...envOrigins]
-            : ['https://airconecall.vercel.app']
+            : ['https://acnow.vercel.app']
         : [
             ...new Set([
                 ...localViteOrigins,
-                ...(envOrigins.length > 0 ? envOrigins : ['https://airconecall.vercel.app']),
+                ...(envOrigins.length > 0 ? envOrigins : ['https://acnow.vercel.app']),
             ]),
         ];
     const localhostOriginOk = (origin) => {
@@ -94,8 +94,8 @@ async function bootstrap() {
     const swaggerEnabled = process.env.ENABLE_SWAGGER === 'true';
     if (swaggerEnabled) {
         const config = new swagger_1.DocumentBuilder()
-            .setTitle('Airconecall Backend')
-            .setDescription('관리자 role-only 헤더(x-admin-role)·추가금 견적·모의결제 API')
+            .setTitle('Living Bridge ACnow Management API')
+            .setDescription('리빙브릿지의 ACnow 관리 API · 관리자 role-only 헤더(x-admin-role)·추가금 견적·모의결제')
             .setVersion('0.2.0')
             .addApiKey({ type: 'apiKey', in: 'header', name: 'x-admin-role' }, 'admin-role')
             .build();

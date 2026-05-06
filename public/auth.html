@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Airconecall 로그인</title>
+    <title>리빙브릿지의 ACnow 로그인</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -85,7 +85,7 @@
       <header class="top">
         <a class="brand" href="/index.html">
           <img src="/branding/icon-mark.png" alt="" />
-          <span>Airconecall</span>
+          <span>리빙브릿지의 ACnow</span>
         </a>
         <nav class="top-nav" aria-label="상단 메뉴">
           <a class="home hidden" id="topHome" href="/index.html">홈화면</a>
@@ -97,7 +97,7 @@
         <aside class="intro">
           <h1 id="introTitle">필요한 일을 이어서 시작하세요</h1>
           <p id="introBody">
-            Airconecall은 고객 문의, 기사 작업, 판매자 공급, 관리자 운영을 하나의 흐름으로 연결합니다.
+            ACnow는 고객 문의, 기사 작업, 판매자 공급, 관리자 운영을 하나의 흐름으로 연결합니다.
             로그인하면 내 계정 역할에 맞는 화면에서 오늘 해야 할 일을 바로 확인할 수 있습니다.
           </p>
           <div class="rule" id="introRule">
@@ -271,28 +271,28 @@
       }
 
       function renderSessionNav() {
-        const session = window.AirconecallSession?.read();
+        const session = window.ACnowSession?.read();
         topHome.classList.toggle('hidden', !session);
         topDashboard.classList.toggle('hidden', !session);
         topLogout.classList.toggle('hidden', !session);
-        if (session) topDashboard.href = window.AirconecallSession.dashboardHref(session);
+        if (session) topDashboard.href = window.ACnowSession.dashboardHref(session);
       }
 
       function renderSessionActions() {
-        const session = window.AirconecallSession?.read();
+        const session = window.ACnowSession?.read();
         if (!session) {
           sessionActions.classList.add('hidden');
           sessionActions.innerHTML = '';
           return;
         }
-        sessionActions.innerHTML = `<a class="home primary" href="${window.AirconecallSession.dashboardHref(session)}">대시보드 화면 보기</a>`;
+        sessionActions.innerHTML = `<a class="home primary" href="${window.ACnowSession.dashboardHref(session)}">대시보드 화면 보기</a>`;
         sessionActions.classList.remove('hidden');
       }
 
       const introCopy = {
         login: {
           title: '필요한 일을 이어서 시작하세요',
-          body: 'Airconecall은 고객 문의, 기사 작업, 판매자 공급, 관리자 운영을 하나의 흐름으로 연결합니다. 로그인하면 내 계정 역할에 맞는 화면에서 오늘 해야 할 일을 바로 확인할 수 있습니다.',
+          body: 'ACnow는 고객 문의, 기사 작업, 판매자 공급, 관리자 운영을 하나의 흐름으로 연결합니다. 로그인하면 내 계정 역할에 맞는 화면에서 오늘 해야 할 일을 바로 확인할 수 있습니다.',
           rule: '고객은 문의와 혜택을, 기사는 배정 작업과 정산을, 판매자는 공급 신청 상태를 확인합니다. 관리자는 내부에서 권한이 부여된 계정만 접근합니다.',
         },
         customer: {
@@ -360,7 +360,7 @@
         const password = String(loginData.get('password') || '');
         try {
           const data = await api('/api/auth/session', { method: 'POST', body: JSON.stringify({ phone, password }) });
-          const session = window.AirconecallSession?.write({
+          const session = window.ACnowSession?.write({
             id: data.id || data.memberId || data.technicianId || data.sellerId,
             role: data.role,
             name: data.name || data.companyName,
@@ -368,7 +368,7 @@
             status: data.status || 'active',
           });
           setMessage(`${data.name || data.companyName || '계정'} 로그인 확인 · ${data.role} 대시보드로 이동합니다.`, true);
-          window.location.href = window.AirconecallSession.dashboardHref(session);
+          window.location.href = window.ACnowSession.dashboardHref(session);
         } catch (e) {
           setMessage(e.message, false);
         }
@@ -433,7 +433,7 @@
         state.mode = location.hash === '#signup' ? 'signup' : 'login';
         render();
       });
-      window.AirconecallSession?.bindLogout();
+      window.ACnowSession?.bindLogout();
       render();
     </script>
   </body>

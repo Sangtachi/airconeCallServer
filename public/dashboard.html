@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Airconecall 대시보드</title>
+    <title>리빙브릿지의 ACnow 관리</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -107,7 +107,7 @@
     <header class="top">
       <a class="brand" href="/index.html">
         <img src="/branding/icon-mark.png" alt="" />
-        <span>Airconecall</span>
+        <span>리빙브릿지의 ACnow 관리</span>
       </a>
       <nav class="nav" aria-label="상단 메뉴">
         <a href="/index.html">홈화면</a>
@@ -130,7 +130,7 @@
 
     <script src="/session.js"></script>
     <script>
-      const session = window.AirconecallSession?.read();
+      const session = window.ACnowSession?.read();
       const title = document.getElementById('title');
       const lead = document.getElementById('lead');
       const roleBadge = document.getElementById('roleBadge');
@@ -473,7 +473,7 @@
         }
       }
 
-      window.AirconecallSession?.bindLogout();
+      window.ACnowSession?.bindLogout();
       boot();
     </script>
   </body>

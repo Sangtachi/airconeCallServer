@@ -6,7 +6,7 @@ body { margin: 0; background: #f8fafc; color: #0f172a; }
   display: flex; align-items: center; gap: 10px; min-height: 36px; margin-bottom: 16px;
   color: #fff; text-decoration: none; font-weight: 900;
 }
-.admin-brand img { width: 32px; height: 32px; border-radius: 9px; background: #fff; }
+.admin-brand img { width: 72px; height: 36px; object-fit: contain; border-radius: 9px; background: #fff; padding: 3px; }
 .sidebar h1 { margin: 0 0 16px; font-size: 22px; }
 nav#tabs { flex: 1; }
 .tab-btn { display:block; width:100%; margin:6px 0; padding:10px 12px; border-radius: 12px; border:0; text-align:left; background:#ffffff1f; color:#fff; cursor:pointer; }

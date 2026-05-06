@@ -798,9 +798,9 @@ if ($roleSelect) {
 if ($sessionRole) $sessionRole.textContent = `role: ${activeRole} · temporary`;
 if ($logoutBtn) {
   $logoutBtn.onclick = () => {
-    if (window.AirconecallSession) window.AirconecallSession.logout('/index.html');
+    if (window.ACnowSession) window.ACnowSession.logout('/index.html');
     else {
-      sessionStorage.removeItem('aircone.session.v1');
+      sessionStorage.removeItem('acnow.session.v1');
       location.href = '/index.html';
     }
   };

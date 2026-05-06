@@ -1,5 +1,5 @@
 (() => {
-  const KEY = 'airconecall.session.v1';
+  const KEY = 'acnow.session.v1';
 
   function read() {
     try {
@@ -53,7 +53,7 @@
     });
   }
 
-  window.AirconecallSession = {
+  window.ACnowSession = {
     KEY,
     read,
     write,

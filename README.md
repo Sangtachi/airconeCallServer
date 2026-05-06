@@ -1,4 +1,4 @@
-# Airconecall Server (Supabase 운영 기준)
+# Living Bridge ACnow Management Server (Supabase 운영 기준)
 
 Supabase를 운영 데이터 기준으로 사용하는 NestJS 백엔드 · 관리자·주문·기사·카탈로그 API.
 
