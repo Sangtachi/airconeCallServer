@@ -457,6 +457,43 @@ export class CreateMaterialDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @IsUUID()
+  sellerId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  stockQuantity?: number;
+
+  @ApiProperty({ required: false, enum: ['active', 'sold_out', 'hidden', 'draft'] })
+  @IsOptional()
+  @IsIn(['active', 'sold_out', 'hidden', 'draft'])
+  marketStatus?: 'active' | 'sold_out' | 'hidden' | 'draft';
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  deliveryNote?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  minOrderQuantity?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsBoolean()
   oemAvailable?: boolean;
 }
@@ -501,6 +538,43 @@ export class UpdateMaterialDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @IsUUID()
+  sellerId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  stockQuantity?: number;
+
+  @ApiProperty({ required: false, enum: ['active', 'sold_out', 'hidden', 'draft'] })
+  @IsOptional()
+  @IsIn(['active', 'sold_out', 'hidden', 'draft'])
+  marketStatus?: 'active' | 'sold_out' | 'hidden' | 'draft';
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  deliveryNote?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  minOrderQuantity?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsBoolean()
   oemAvailable?: boolean;
 
@@ -508,6 +582,56 @@ export class UpdateMaterialDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+}
+
+export class CreateMaterialPurchaseOrderDto {
+  @ApiProperty({
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        materialId: { type: 'string' },
+        quantity: { type: 'number' },
+      },
+    },
+  })
+  items!: Array<{ materialId: string; quantity: number }>;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  deliveryAddress?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  recipientName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  recipientPhone?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  requestMemo?: string;
+}
+
+export class UpdateMaterialPurchaseOrderDto {
+  @ApiProperty({ enum: ['requested', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled'] })
+  @IsIn(['requested', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled'])
+  status!: 'requested' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  sellerMemo?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  adminMemo?: string;
 }
 
 export class CreateBookingDto {

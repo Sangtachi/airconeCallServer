@@ -208,6 +208,12 @@ let SellerPublicController = class SellerPublicController {
     deleteMaterial(id, materialId) {
         return this.admin.deleteSellerMaterial(id, materialId);
     }
+    materialOrders(id) {
+        return this.admin.sellerMaterialOrders(id);
+    }
+    updateMaterialOrder(id, orderId, dto) {
+        return this.admin.updateSellerMaterialPurchaseOrder(id, orderId, dto);
+    }
 };
 exports.SellerPublicController = SellerPublicController;
 __decorate([
@@ -270,6 +276,24 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], SellerPublicController.prototype, "deleteMaterial", null);
+__decorate([
+    (0, common_1.Get)(':id/material-orders'),
+    (0, swagger_1.ApiOperation)({ summary: '판매자 자재 구매요청 목록(Supabase material_purchase_orders)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], SellerPublicController.prototype, "materialOrders", null);
+__decorate([
+    (0, common_1.Patch)(':id/material-orders/:orderId'),
+    (0, swagger_1.ApiOperation)({ summary: '판매자 자재 구매요청 상태 변경(Supabase material_purchase_orders)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('orderId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, admin_dto_1.UpdateMaterialPurchaseOrderDto]),
+    __metadata("design:returntype", void 0)
+], SellerPublicController.prototype, "updateMaterialOrder", null);
 exports.SellerPublicController = SellerPublicController = __decorate([
     (0, swagger_1.ApiTags)('sellers-public'),
     (0, common_1.Controller)('sellers'),

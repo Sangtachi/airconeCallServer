@@ -270,6 +270,12 @@
         msg.className = `msg ${ok ? 'ok' : 'err'}`;
       }
 
+      function goDashboard(sessionInput, message) {
+        const session = window.ACnowSession?.write(sessionInput);
+        setMessage(message, true);
+        window.location.href = window.ACnowSession.dashboardHref(session);
+      }
+
       function renderSessionNav() {
         const session = window.ACnowSession?.read();
         topHome.classList.toggle('hidden', !session);
@@ -367,7 +373,7 @@
             phone: data.phone || phone,
             status: data.status || 'active',
           });
-          setMessage(`${data.name || data.companyName || '계정'} 로그인 확인 · ${data.role} 대시보드로 이동합니다.`, true);
+          setMessage(`${window.ACnowSession.displayName(session)} 로그인 확인 · 대시보드로 이동합니다.`, true);
           window.location.href = window.ACnowSession.dashboardHref(session);
         } catch (e) {
           setMessage(e.message, false);
@@ -388,7 +394,17 @@
                 marketingConsent: fd.get('marketingConsent') === 'on',
               }),
             });
-            setMessage(`고객 가입 완료 · member ${data.member?.id || ''}`, true);
+            goDashboard(
+              {
+                id: data.member?.id,
+                role: 'customer',
+                name: data.member?.name || String(fd.get('customerName') || '').trim(),
+                phone: data.member?.phone || digits(fd.get('customerPhone')),
+                status: data.member?.status || 'active',
+              },
+              '고객 가입 완료 · 고객 대시보드로 이동합니다.',
+            );
+            return;
           }
           if (state.role === 'technician') {
             const baseRegion = String(fd.get('baseRegion') || '').trim();
@@ -408,7 +424,17 @@
                 }],
               }),
             });
-            setMessage(`기사 신청 접수 · 상태 ${data.status}`, true);
+            goDashboard(
+              {
+                id: data.id,
+                role: 'technician',
+                name: String(fd.get('technicianName') || '').trim(),
+                phone: digits(fd.get('technicianPhone')),
+                status: data.status || 'pending',
+              },
+              '기사 신청 접수 · 기사 대시보드로 이동합니다.',
+            );
+            return;
           }
           if (state.role === 'seller') {
             const data = await api('/api/sellers/register', {
@@ -422,7 +448,17 @@
                 productCategory: String(fd.get('productCategory') || '').trim() || undefined,
               }),
             });
-            setMessage(`판매자 신청 접수 · 상태 ${data.status}`, true);
+            goDashboard(
+              {
+                id: data.sellerId,
+                role: 'seller',
+                name: String(fd.get('ownerName') || '').trim() || data.companyName || String(fd.get('companyName') || '').trim(),
+                phone: digits(fd.get('sellerPhone')),
+                status: data.status || 'pending',
+              },
+              '판매자 신청 접수 · 판매자 대시보드로 이동합니다.',
+            );
+            return;
           }
         } catch (e) {
           setMessage(e.message, false);

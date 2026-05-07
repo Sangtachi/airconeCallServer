@@ -103,6 +103,7 @@ function sellerFromRow(row) {
 function materialFromRow(row) {
     return {
         id: String(row.id),
+        sellerId: str(row.seller_id),
         name: String(row.name ?? ''),
         code: String(row.code ?? ''),
         category: String(row.category ?? 'general'),
@@ -112,9 +113,63 @@ function materialFromRow(row) {
         platformFeeRate: row.platform_fee_rate == null ? null : Number(row.platform_fee_rate),
         oemAvailable: Boolean(row.oem_available),
         supplierName: str(row.supplier_name),
+        description: str(row.description),
+        imageUrl: str(row.image_url),
+        stockQuantity: Number(row.stock_quantity ?? 0),
+        marketStatus: String(row.market_status ?? 'active'),
+        deliveryNote: str(row.delivery_note),
+        minOrderQuantity: Number(row.min_order_quantity ?? 1),
         isActive: row.is_active !== false,
         createdAt: String(row.created_at ?? new Date().toISOString()),
         updatedAt: String(row.updated_at ?? new Date().toISOString()),
+    };
+}
+function materialPurchaseItemFromRow(row) {
+    return {
+        id: String(row.id),
+        purchaseOrderId: String(row.purchase_order_id),
+        materialId: str(row.material_id),
+        sellerId: str(row.seller_id),
+        name: String(row.name ?? ''),
+        code: String(row.code ?? ''),
+        unit: String(row.unit ?? 'each'),
+        supplierName: str(row.supplier_name),
+        unitPrice: Number(row.unit_price ?? 0),
+        quantity: Number(row.quantity ?? 0),
+        amount: Number(row.amount ?? 0),
+        createdAt: String(row.created_at ?? new Date().toISOString()),
+    };
+}
+function materialPurchaseOrderFromRow(row) {
+    const rawItems = Array.isArray(row.items)
+        ? row.items
+        : Array.isArray(row.material_purchase_order_items)
+            ? row.material_purchase_order_items
+            : [];
+    return {
+        id: String(row.id),
+        orderNo: String(row.order_no ?? ''),
+        technicianId: String(row.technician_id ?? ''),
+        technicianName: str(row.technician_name),
+        technicianPhone: str(row.technician_phone),
+        sellerId: str(row.seller_id),
+        sellerName: str(row.seller_name),
+        status: String(row.status ?? 'requested'),
+        totalAmount: Number(row.total_amount ?? 0),
+        deliveryAddress: String(row.delivery_address ?? ''),
+        recipientName: str(row.recipient_name),
+        recipientPhone: str(row.recipient_phone),
+        requestMemo: str(row.request_memo),
+        sellerMemo: str(row.seller_memo),
+        adminMemo: str(row.admin_memo),
+        confirmedAt: str(row.confirmed_at),
+        preparingAt: str(row.preparing_at),
+        shippedAt: str(row.shipped_at),
+        deliveredAt: str(row.delivered_at),
+        cancelledAt: str(row.cancelled_at),
+        createdAt: String(row.created_at ?? new Date().toISOString()),
+        updatedAt: String(row.updated_at ?? new Date().toISOString()),
+        items: rawItems.map((it) => materialPurchaseItemFromRow(it)),
     };
 }
 function addressFromRow(row) {
@@ -887,6 +942,7 @@ let AdminService = class AdminService {
         return {
             seller,
             materials: await this.sellerMaterials(id),
+            materialOrders: await this.sellerMaterialOrders(id),
             scope: ['판매자 신청 상태', '회사/담당자 정보', '취급 품목', '자재/공급가'],
         };
     }
@@ -1022,7 +1078,14 @@ let AdminService = class AdminService {
             customer_price: dto.customerPrice ?? null,
             technician_cost_allowance: dto.technicianCostAllowance ?? null,
             platform_fee_rate: dto.platformFeeRate ?? null,
+            seller_id: dto.sellerId ? requireUuid(dto.sellerId, 'seller id') : null,
             supplier_name: dto.supplierName?.trim() || null,
+            description: dto.description?.trim() || null,
+            image_url: dto.imageUrl?.trim() || null,
+            stock_quantity: dto.stockQuantity ?? 0,
+            market_status: dto.marketStatus ?? ((dto.stockQuantity ?? 0) > 0 ? 'active' : 'sold_out'),
+            delivery_note: dto.deliveryNote?.trim() || null,
+            min_order_quantity: dto.minOrderQuantity ?? 1,
             oem_available: dto.oemAvailable ?? false,
             is_active: true,
         })
@@ -1048,8 +1111,22 @@ let AdminService = class AdminService {
             patch.technician_cost_allowance = dto.technicianCostAllowance;
         if (dto.platformFeeRate !== undefined)
             patch.platform_fee_rate = dto.platformFeeRate;
+        if (dto.sellerId !== undefined)
+            patch.seller_id = dto.sellerId ? requireUuid(dto.sellerId, 'seller id') : null;
         if (dto.supplierName !== undefined)
             patch.supplier_name = dto.supplierName.trim() || null;
+        if (dto.description !== undefined)
+            patch.description = dto.description.trim() || null;
+        if (dto.imageUrl !== undefined)
+            patch.image_url = dto.imageUrl.trim() || null;
+        if (dto.stockQuantity !== undefined)
+            patch.stock_quantity = dto.stockQuantity;
+        if (dto.marketStatus !== undefined)
+            patch.market_status = dto.marketStatus;
+        if (dto.deliveryNote !== undefined)
+            patch.delivery_note = dto.deliveryNote.trim() || null;
+        if (dto.minOrderQuantity !== undefined)
+            patch.min_order_quantity = dto.minOrderQuantity;
         if (dto.oemAvailable !== undefined)
             patch.oem_available = dto.oemAvailable;
         if (dto.isActive !== undefined)
@@ -1090,19 +1167,33 @@ let AdminService = class AdminService {
     }
     async sellerMaterials(sellerId) {
         const seller = await this.sellerById(sellerId);
-        const { data, error } = await this.db()
+        const id = requireUuid(sellerId, 'seller id');
+        const { data: byId, error: e1 } = await this.db()
             .from('materials')
             .select('*')
+            .eq('seller_id', id)
+            .order('created_at', { ascending: false });
+        if (e1)
+            throw new common_1.BadRequestException(e1.message);
+        const { data: byName, error: e2 } = await this.db()
+            .from('materials')
+            .select('*')
+            .is('seller_id', null)
             .eq('supplier_name', seller.companyName)
             .order('created_at', { ascending: false });
-        if (error)
-            throw new common_1.BadRequestException(error.message);
-        return (data ?? []).map(materialFromRow);
+        if (e2)
+            throw new common_1.BadRequestException(e2.message);
+        const merged = new Map();
+        for (const row of [...(byId ?? []), ...(byName ?? [])]) {
+            merged.set(String(row.id), row);
+        }
+        return [...merged.values()].map(materialFromRow);
     }
     async createSellerMaterial(sellerId, dto) {
         const seller = await this.sellerById(sellerId);
         const material = await this.createMaterial({
             ...dto,
+            sellerId,
             supplierName: seller.companyName,
         });
         await this.audit('seller_create_material', 'materials', material.id, {
@@ -1116,18 +1207,20 @@ let AdminService = class AdminService {
         const seller = await this.sellerById(sellerId);
         const { data: before, error } = await this.db()
             .from('materials')
-            .select('id,supplier_name')
+            .select('id,supplier_name,seller_id')
             .eq('id', requireUuid(materialId, 'material id'))
             .maybeSingle();
         if (error)
             throw new common_1.BadRequestException(error.message);
         if (!before)
             throw new common_1.NotFoundException('material not found');
-        if (String(before.supplier_name ?? '') !== seller.companyName) {
+        const rec = before;
+        if (String(rec.seller_id ?? '') !== sellerId && String(rec.supplier_name ?? '') !== seller.companyName) {
             throw new common_1.UnauthorizedException('해당 판매자 공급가가 아닙니다.');
         }
         const material = await this.updateMaterial(materialId, {
             ...dto,
+            sellerId,
             supplierName: seller.companyName,
         });
         await this.audit('seller_update_material', 'materials', materialId, {
@@ -1140,6 +1233,147 @@ let AdminService = class AdminService {
         await this.updateSellerMaterial(sellerId, materialId, { isActive: false });
         await this.audit('seller_delete_material', 'materials', materialId, { sellerId, soft: true });
         return { id: materialId, deleted: true, softDeleted: true };
+    }
+    async sellerMaterialOrders(sellerId) {
+        const seller = await this.sellerById(sellerId);
+        const { data, error } = await this.db()
+            .from('material_purchase_orders')
+            .select('*,items:material_purchase_order_items(*)')
+            .eq('seller_id', seller.id)
+            .order('created_at', { ascending: false });
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        return (data ?? []).map(materialPurchaseOrderFromRow);
+    }
+    async getMaterialPurchaseOrders() {
+        const { data, error } = await this.db()
+            .from('material_purchase_orders')
+            .select('*,items:material_purchase_order_items(*)')
+            .order('created_at', { ascending: false })
+            .limit(500);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        return (data ?? []).map(materialPurchaseOrderFromRow);
+    }
+    async updateSellerMaterialPurchaseOrder(sellerId, orderId, dto) {
+        const seller = await this.sellerById(sellerId);
+        return this.updateMaterialPurchaseOrder(orderId, dto, {
+            actor: 'seller',
+            sellerId: seller.id,
+        });
+    }
+    async updateAdminMaterialPurchaseOrder(orderId, dto) {
+        return this.updateMaterialPurchaseOrder(orderId, dto, { actor: 'admin' });
+    }
+    async sellerPreviewSession(id) {
+        const seller = await this.sellerById(id);
+        return {
+            id: seller.id,
+            role: 'seller',
+            name: seller.companyName || seller.ownerName,
+            phone: seller.phone,
+            status: seller.status,
+            preview: true,
+            previewLabel: '관리자 운영 미리보기',
+        };
+    }
+    async technicianPreviewSession(id) {
+        const technician = this.techniciansRegistry.findById(requireUuid(id, 'technician id'));
+        if (!technician)
+            throw new common_1.NotFoundException('technician not found');
+        return {
+            id: technician.id,
+            role: 'technician',
+            name: technician.name,
+            phone: technician.phone,
+            status: technician.status,
+            preview: true,
+            previewLabel: '관리자 운영 미리보기',
+        };
+    }
+    async updateMaterialPurchaseOrder(orderId, dto, scope) {
+        const id = requireUuid(orderId, 'material order id');
+        const { data: before, error: beforeError } = await this.db()
+            .from('material_purchase_orders')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+        if (beforeError)
+            throw new common_1.BadRequestException(beforeError.message);
+        if (!before)
+            throw new common_1.NotFoundException('material order not found');
+        const rec = before;
+        if (scope.actor === 'seller' && String(rec.seller_id ?? '') !== scope.sellerId) {
+            throw new common_1.UnauthorizedException('해당 판매자 구매요청이 아닙니다.');
+        }
+        const status = dto.status;
+        const now = new Date().toISOString();
+        const patch = { status };
+        if (scope.actor === 'seller' && dto.sellerMemo !== undefined)
+            patch.seller_memo = dto.sellerMemo.trim() || null;
+        if (scope.actor === 'admin') {
+            if (dto.sellerMemo !== undefined)
+                patch.seller_memo = dto.sellerMemo.trim() || null;
+            if (dto.adminMemo !== undefined)
+                patch.admin_memo = dto.adminMemo.trim() || null;
+        }
+        if (status === 'confirmed')
+            patch.confirmed_at = now;
+        if (status === 'preparing')
+            patch.preparing_at = now;
+        if (status === 'shipped')
+            patch.shipped_at = now;
+        if (status === 'delivered')
+            patch.delivered_at = now;
+        if (status === 'cancelled')
+            patch.cancelled_at = now;
+        const { data, error } = await this.db()
+            .from('material_purchase_orders')
+            .update(patch)
+            .eq('id', id)
+            .select('*,items:material_purchase_order_items(*)')
+            .single();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        if (status === 'cancelled' && String(rec.status ?? '') !== 'cancelled' && String(rec.status ?? '') !== 'delivered') {
+            await this.restoreMaterialOrderStock(id);
+        }
+        await this.audit(scope.actor === 'seller' ? 'seller_update_material_order' : 'admin_update_material_order', 'material_purchase_orders', id, { status, sellerId: scope.sellerId ?? null });
+        return materialPurchaseOrderFromRow(data);
+    }
+    async restoreMaterialOrderStock(orderId) {
+        const { data, error } = await this.db()
+            .from('material_purchase_order_items')
+            .select('material_id,quantity')
+            .eq('purchase_order_id', orderId);
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        for (const row of (data ?? [])) {
+            const materialId = str(row.material_id);
+            if (!materialId)
+                continue;
+            const quantity = Math.max(0, Number(row.quantity ?? 0));
+            const { data: material, error: e1 } = await this.db()
+                .from('materials')
+                .select('stock_quantity,market_status')
+                .eq('id', materialId)
+                .maybeSingle();
+            if (e1)
+                throw new common_1.BadRequestException(e1.message);
+            if (!material)
+                continue;
+            const nextStock = Number(material.stock_quantity ?? 0) + quantity;
+            const currentStatus = String(material.market_status ?? 'active');
+            const { error: e2 } = await this.db()
+                .from('materials')
+                .update({
+                stock_quantity: nextStock,
+                market_status: currentStatus === 'sold_out' && nextStock > 0 ? 'active' : currentStatus,
+            })
+                .eq('id', materialId);
+            if (e2)
+                throw new common_1.BadRequestException(e2.message);
+        }
     }
     async getBookings() {
         const rows = await this.orders.listOrders();

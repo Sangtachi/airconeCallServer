@@ -12,6 +12,7 @@ const supabase_js_1 = require("@supabase/supabase-js");
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
 const node_process_1 = require("node:process");
+const node_util_1 = require("node:util");
 const database_tokens_1 = require("./database.tokens");
 let localEnvLoaded = false;
 function loadLocalEnvIfPresent() {
@@ -19,16 +20,19 @@ function loadLocalEnvIfPresent() {
         return;
     localEnvLoaded = true;
     const env = process.env.NODE_ENV?.trim() || 'development';
-    const candidates = [
-        `.env.${env}.local`,
-        '.env.local',
-        `.env.${env}`,
-        '.env',
-    ];
+    const candidates = ['.env', `.env.${env}`, '.env.local', `.env.${env}.local`];
     for (const name of candidates) {
         const envPath = (0, node_path_1.join)(process.cwd(), name);
         if ((0, node_fs_1.existsSync)(envPath)) {
-            (0, node_process_1.loadEnvFile)(envPath);
+            if (env === 'production') {
+                (0, node_process_1.loadEnvFile)(envPath);
+            }
+            else {
+                const parsed = (0, node_util_1.parseEnv)((0, node_fs_1.readFileSync)(envPath, 'utf8'));
+                for (const [key, value] of Object.entries(parsed)) {
+                    process.env[key] = value;
+                }
+            }
         }
     }
 }

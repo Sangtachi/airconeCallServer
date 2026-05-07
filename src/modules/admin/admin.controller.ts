@@ -31,6 +31,7 @@ import {
   UpdateBookingStatusDto,
   UpdateCouponDto,
   UpdateMaterialDto,
+  UpdateMaterialPurchaseOrderDto,
   UpdateMemberDto,
   UpdateSellerDto,
   UpdateOnboardingDto,
@@ -211,6 +212,30 @@ export class AdminController {
   @AdminRoles('ops_admin')
   deleteMaterial(@Param('id') id: string) {
     return this.service.deleteMaterial(id);
+  }
+
+  @Get('material-orders')
+  @AdminRoles('ops_admin')
+  getMaterialOrders() {
+    return this.service.getMaterialPurchaseOrders();
+  }
+
+  @Patch('material-orders/:id')
+  @AdminRoles('ops_admin')
+  updateMaterialOrder(@Param('id') id: string, @Body() dto: UpdateMaterialPurchaseOrderDto) {
+    return this.service.updateAdminMaterialPurchaseOrder(id, dto);
+  }
+
+  @Get('sellers/:id/preview-session')
+  @AdminRoles('ops_admin')
+  sellerPreviewSession(@Param('id') id: string) {
+    return this.service.sellerPreviewSession(id);
+  }
+
+  @Get('technicians/:id/preview-session')
+  @AdminRoles('ops_admin')
+  technicianPreviewSession(@Param('id') id: string) {
+    return this.service.technicianPreviewSession(id);
   }
 
   @Get('payments')

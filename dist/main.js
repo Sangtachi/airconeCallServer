@@ -32,6 +32,7 @@ async function bootstrap() {
     ];
     const productionWebOrigins = [
         'https://acnow.vercel.app',
+        'https://acnow-partner.vercel.app',
         'https://aircone-call.vercel.app',
         'https://airconecall.vercel.app',
     ];

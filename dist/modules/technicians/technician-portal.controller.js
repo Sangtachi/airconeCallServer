@@ -16,17 +16,20 @@ exports.TechnicianPortalController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const swagger_1 = require("@nestjs/swagger");
+const admin_dto_1 = require("../admin/admin.dto");
 const extra_quotes_dto_1 = require("../orders/dto/extra-quotes.dto");
 const technician_photo_upload_dto_1 = require("../orders/dto/technician-photo-upload.dto");
 const extra_quotes_service_1 = require("../orders/extra-quotes.service");
 const orders_service_1 = require("../orders/orders.service");
 const technician_approved_guard_1 = require("./technician-approved.guard");
 const technician_dto_1 = require("./technician.dto");
+const technicians_service_1 = require("./technicians.service");
 const ALLOWED_IMAGE_MIME = /^image\/(jpeg|jpg|png|webp|heic|heif)$/i;
 let TechnicianPortalController = class TechnicianPortalController {
-    constructor(orders, extraQuotes) {
+    constructor(orders, extraQuotes, technicians) {
         this.orders = orders;
         this.extraQuotes = extraQuotes;
+        this.technicians = technicians;
     }
     me(req) {
         const t = req.technician;
@@ -46,6 +49,30 @@ let TechnicianPortalController = class TechnicianPortalController {
             bankVerificationStatus: t.bankVerificationStatus,
             bankRejectReason: t.bankRejectReason,
         };
+    }
+    updateWorkStatus(req, dto) {
+        return this.technicians.updateWorkStatus(req.technician.id, dto.workStatus);
+    }
+    partnerHome(req) {
+        return this.orders.technicianPartnerHome(req.technician);
+    }
+    dispatchOffers(req, query) {
+        return this.orders.technicianListDispatchOffers(req.technician, query);
+    }
+    acceptDispatchOffer(req, orderId) {
+        return this.orders.technicianAcceptDispatchOffer(req.technician, orderId);
+    }
+    rejectDispatchOffer(req, orderId) {
+        return this.orders.technicianRejectDispatchOffer(req.technician, orderId);
+    }
+    preferences(req) {
+        return this.orders.technicianGetDispatchPreferences(req.technician);
+    }
+    updatePreferences(req, dto) {
+        return this.orders.technicianUpdateDispatchPreferences(req.technician, dto);
+    }
+    reviews(req) {
+        return this.orders.technicianListReviews(req.technician.id);
     }
     jobs(req) {
         return this.orders.technicianListJobs(req.technician.id);
@@ -74,6 +101,12 @@ let TechnicianPortalController = class TechnicianPortalController {
     materials(req) {
         void req.technician;
         return this.orders.technicianListMaterials();
+    }
+    materialOrders(req) {
+        return this.orders.technicianListMaterialOrders(req.technician.id);
+    }
+    createMaterialOrder(req, dto) {
+        return this.orders.technicianCreateMaterialOrder(req.technician, dto);
     }
     createExtraQuote(req, orderId, dto) {
         return this.extraQuotes.technicianCreateQuote(req.technician.id, orderId, dto);
@@ -109,6 +142,67 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], TechnicianPortalController.prototype, "me", null);
+__decorate([
+    (0, common_1.Patch)('technician/me/work-status'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, technician_dto_1.TechnicianWorkStatusDto]),
+    __metadata("design:returntype", void 0)
+], TechnicianPortalController.prototype, "updateWorkStatus", null);
+__decorate([
+    (0, common_1.Get)('technician/partner/home'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TechnicianPortalController.prototype, "partnerHome", null);
+__decorate([
+    (0, common_1.Get)('technician/dispatch/offers'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, technician_dto_1.TechnicianDispatchOffersQueryDto]),
+    __metadata("design:returntype", void 0)
+], TechnicianPortalController.prototype, "dispatchOffers", null);
+__decorate([
+    (0, common_1.Post)('technician/dispatch/offers/:orderId/accept'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('orderId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], TechnicianPortalController.prototype, "acceptDispatchOffer", null);
+__decorate([
+    (0, common_1.Post)('technician/dispatch/offers/:orderId/reject'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('orderId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], TechnicianPortalController.prototype, "rejectDispatchOffer", null);
+__decorate([
+    (0, common_1.Get)('technician/preferences'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TechnicianPortalController.prototype, "preferences", null);
+__decorate([
+    (0, common_1.Patch)('technician/preferences'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, technician_dto_1.TechnicianDispatchPreferencesDto]),
+    __metadata("design:returntype", void 0)
+], TechnicianPortalController.prototype, "updatePreferences", null);
+__decorate([
+    (0, common_1.Get)('technician/reviews'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TechnicianPortalController.prototype, "reviews", null);
 __decorate([
     (0, common_1.Get)('technician/jobs'),
     __param(0, (0, common_1.Req)()),
@@ -178,6 +272,21 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], TechnicianPortalController.prototype, "materials", null);
+__decorate([
+    (0, common_1.Get)('technician/material-orders'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TechnicianPortalController.prototype, "materialOrders", null);
+__decorate([
+    (0, common_1.Post)('technician/material-orders'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, admin_dto_1.CreateMaterialPurchaseOrderDto]),
+    __metadata("design:returntype", void 0)
+], TechnicianPortalController.prototype, "createMaterialOrder", null);
 __decorate([
     (0, common_1.Post)('technician/jobs/:orderId/extra-quotes'),
     __param(0, (0, common_1.Req)()),
@@ -250,6 +359,7 @@ exports.TechnicianPortalController = TechnicianPortalController = __decorate([
     (0, common_1.UseGuards)(technician_approved_guard_1.TechnicianApprovedGuard),
     (0, common_1.Controller)(),
     __metadata("design:paramtypes", [orders_service_1.OrdersService,
-        extra_quotes_service_1.ExtraQuotesService])
+        extra_quotes_service_1.ExtraQuotesService,
+        technicians_service_1.TechniciansService])
 ], TechnicianPortalController);
 //# sourceMappingURL=technician-portal.controller.js.map

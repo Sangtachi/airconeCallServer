@@ -5,8 +5,11 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsNumber,
   IsOptional,
   IsString,
+  Max,
+  Min,
   MinLength,
   ValidateNested,
 } from 'class-validator';
@@ -156,4 +159,73 @@ export class TechnicianOrderPhotoDto {
   @IsOptional()
   @IsString()
   caption?: string;
+}
+
+export class TechnicianWorkStatusDto {
+  @ApiProperty({ enum: ['offline', 'available', 'busy', 'reserved_only'] })
+  @IsIn(['offline', 'available', 'busy', 'reserved_only'])
+  workStatus!: 'offline' | 'available' | 'busy' | 'reserved_only';
+}
+
+export class TechnicianDispatchOffersQueryDto {
+  @ApiProperty({ required: false, enum: ['same_day', 'reservation'] })
+  @IsOptional()
+  @IsIn(['same_day', 'reservation'])
+  type?: 'same_day' | 'reservation';
+
+  @ApiProperty({ required: false, enum: ['today', 'tomorrow', 'week', 'next_week'] })
+  @IsOptional()
+  @IsIn(['today', 'tomorrow', 'week', 'next_week'])
+  range?: 'today' | 'tomorrow' | 'week' | 'next_week';
+}
+
+export class TechnicianDispatchPreferencesDto {
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  regions?: string[];
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  serviceTypes?: Array<'install' | 'cleaning'>;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  airconTypes?: Array<'wall' | 'stand' | 'two_in_one' | 'system'>;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  availabilityCodes?: Array<'same_day' | 'reservation' | 'weekend' | 'night'>;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  minimumPayout?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(300)
+  maxDistanceKm?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  sameDayEnabled?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  reservationEnabled?: boolean;
 }

@@ -571,8 +571,8 @@
         dashboardRoute.classList.remove('hidden');
         loginAction.classList.add('hidden');
         signupAction.classList.add('hidden');
-        sessionNote.textContent = `${window.ACnowSession.displayName(session)}님 로그인 중`;
-        dashboardRouteText.textContent = `${window.ACnowSession.displayName(session)}님 계정의 대시보드로 이동합니다.`;
+        sessionNote.textContent = `${window.ACnowSession.displayName(session)} 로그인 중`;
+        dashboardRouteText.textContent = `${window.ACnowSession.displayName(session)} 계정의 대시보드로 이동합니다.`;
         sessionNote.classList.remove('hidden');
       }
       window.ACnowSession?.bindLogout();

@@ -7,6 +7,8 @@ const bankVerificationOptions = opts([['unsubmitted', '미제출'], ['pending', 
 const paymentStatusOptions = opts([['paid', '결제완료'], ['ready', '대기'], ['failed', '실패'], ['cancelled', '취소'], ['partial_cancelled', '부분취소']]);
 const settlementStatusOptions = opts([['pending', '대기'], ['confirmed', '확정'], ['paid', '지급완료'], ['held', '보류'], ['cancelled', '취소']]);
 const quoteStatusOptions = opts([['requested', '요청'], ['approved', '고객승인'], ['paid', '결제완료'], ['rejected', '반려'], ['cancelled', '취소']]);
+const materialMarketStatusOptions = opts([['active', '판매중'], ['sold_out', '품절'], ['hidden', '숨김'], ['draft', '작성중']]);
+const materialOrderStatusOptions = opts([['requested', '요청'], ['confirmed', '확인'], ['preparing', '준비중'], ['shipped', '배송중'], ['delivered', '완료'], ['cancelled', '취소']]);
 
 function money(n) {
   const v = Number(n ?? 0);
@@ -143,6 +145,7 @@ const tabs = [
   {
     id: 'dashboard',
     name: '운영 대시보드',
+    adminRoles: ['super_admin', 'ops_admin', 'dispatch_admin', 'finance_admin'],
     list: '/api/admin/dashboard',
     singleton: true,
     renderList: renderDashboard,
@@ -153,11 +156,13 @@ const tabs = [
   {
     id: 'accounts',
     name: '전체 회원관리',
+    adminRoles: ['super_admin', 'ops_admin'],
     accountHub: true,
   },
   {
     id: 'onboarding',
     name: '기사등록/승인',
+    adminRoles: ['super_admin', 'ops_admin'],
     list: '/api/admin/technician-onboarding',
     patchBase: '/api/admin/technician-onboarding',
     formCreate: null,
@@ -169,6 +174,7 @@ const tabs = [
   {
     id: 'bookings',
     name: '주문/배차',
+    adminRoles: ['super_admin', 'ops_admin', 'dispatch_admin'],
     list: '/api/admin/customer-orders',
     create: '/api/admin/bookings',
     patchBase: '/api/admin/customer-orders',
@@ -204,13 +210,13 @@ const tabs = [
           ['refunded', '환불'],
         ]),
       },
-      { key: 'assignedTechnicianId', label: '기사 UUID(비우면 미배정)', type: 'text' },
       { key: 'adminMemo', label: '관리자 메모', type: 'textarea' },
     ],
   },
   {
     id: 'emergency_leads',
     name: '긴급접수',
+    adminRoles: ['super_admin', 'ops_admin', 'dispatch_admin'],
     list: '/api/admin/emergency-leads',
     selectable: false,
     bulkDelete: false,
@@ -233,10 +239,11 @@ const tabs = [
   {
     id: 'rewards',
     name: '리워드/쿠폰',
+    adminRoles: ['super_admin', 'ops_admin', 'finance_admin'],
     list: '/api/admin/coupons',
     create: '/api/admin/coupons',
     formCreate: [
-      { key: 'userId', label: '회원 ID', type: 'text', required: true },
+      { key: 'userId', label: '회원 식별값', type: 'text', required: true },
       {
         key: 'couponType',
         label: '쿠폰 유형',
@@ -260,6 +267,7 @@ const tabs = [
   {
     id: 'settlements',
     name: '정산',
+    adminRoles: ['super_admin', 'finance_admin', 'dispatch_admin'],
     list: '/api/admin/settlements',
     formCreate: null,
     quickFilters: [{ key: 'status', label: '상태', options: settlementStatusOptions }],
@@ -276,6 +284,7 @@ const tabs = [
   {
     id: 'payments',
     name: '결제 목록',
+    adminRoles: ['super_admin', 'finance_admin'],
     list: '/api/admin/payments',
     formCreate: null,
     selectable: false,
@@ -286,27 +295,30 @@ const tabs = [
   {
     id: 'extra_quotes',
     name: '추가금 견적',
+    adminRoles: ['super_admin', 'ops_admin', 'dispatch_admin', 'finance_admin'],
     list: '/api/admin/extra-quotes',
     formCreate: null,
     selectable: false,
     bulkDelete: false,
     quickFilters: [{ key: 'status', label: '상태', options: quoteStatusOptions }],
-    queryInputs: [{ key: 'orderId', label: '주문 UUID' }],
+    queryInputs: [{ key: 'orderId', label: '주문 검색값' }],
     formEdit: null,
   },
   {
     id: 'settlement_events',
     name: '정산 감사',
+    adminRoles: ['super_admin', 'finance_admin', 'dispatch_admin'],
     list: '/api/admin/settlement-events',
     formCreate: null,
     selectable: false,
     bulkDelete: false,
-    queryInputs: [{ key: 'orderId', label: '주문 UUID' }],
+    queryInputs: [{ key: 'orderId', label: '주문 검색값' }],
     formEdit: null,
   },
   {
     id: 'admin_logs',
     name: '관리 로그',
+    adminRoles: ['super_admin'],
     list: '/api/admin/logs',
     formCreate: null,
     selectable: false,
@@ -316,12 +328,13 @@ const tabs = [
   {
     id: 'service_products',
     name: '설치·청소상품(B)',
+    adminRoles: ['super_admin', 'ops_admin'],
     list: '/api/admin/service-products',
     listSuffix: '?includeInactive=1',
     create: '/api/admin/service-products',
     patchBase: '/api/admin/service-products',
     formCreate: [
-      { key: 'categoryId', label: '카테고리 UUID', type: 'text', required: true },
+      { key: 'categoryId', label: '카테고리', type: 'text', required: true },
       { key: 'name', label: '상품명', type: 'text', required: true },
       { key: 'code', label: '코드', type: 'text', required: true },
       { key: 'serviceType', label: '서비스 유형', type: 'select', options: opts([['install', '설치'], ['cleaning', '청소']]) },
@@ -347,6 +360,7 @@ const tabs = [
   {
     id: 'service_addons',
     name: '추가금 항목(B)',
+    adminRoles: ['super_admin', 'ops_admin'],
     list: '/api/admin/service-addons',
     listSuffix: '?includeInactive=1',
     create: '/api/admin/service-addons',
@@ -373,6 +387,7 @@ const tabs = [
   {
     id: 'materials',
     name: '자재/판매가(B)',
+    adminRoles: ['super_admin'],
     list: '/api/admin/materials',
     create: '/api/admin/materials',
     patchBase: '/api/admin/materials',
@@ -386,6 +401,12 @@ const tabs = [
       { key: 'technicianCostAllowance', label: '기사 인정 원가', type: 'number' },
       { key: 'platformFeeRate', label: '플랫폼 수수료율(0~1)', type: 'number', step: '0.01' },
       { key: 'supplierName', label: '공급자/판매자명', type: 'text' },
+      { key: 'description', label: '상품 설명', type: 'textarea' },
+      { key: 'imageUrl', label: '이미지 URL', type: 'text' },
+      { key: 'stockQuantity', label: '재고', type: 'number' },
+      { key: 'marketStatus', label: '마켓 상태', type: 'select', options: materialMarketStatusOptions },
+      { key: 'deliveryNote', label: '배송 안내', type: 'textarea' },
+      { key: 'minOrderQuantity', label: '최소 주문 수량', type: 'number' },
       { key: 'oemAvailable', label: 'OEM 가능', type: 'checkbox' },
     ],
     formEdit: [
@@ -396,8 +417,29 @@ const tabs = [
       { key: 'technicianCostAllowance', label: '기사 인정 원가', type: 'number' },
       { key: 'platformFeeRate', label: '플랫폼 수수료율(0~1)', type: 'number', step: '0.01' },
       { key: 'supplierName', label: '공급자/판매자명', type: 'text' },
+      { key: 'description', label: '상품 설명', type: 'textarea' },
+      { key: 'imageUrl', label: '이미지 URL', type: 'text' },
+      { key: 'stockQuantity', label: '재고', type: 'number' },
+      { key: 'marketStatus', label: '마켓 상태', type: 'select', options: materialMarketStatusOptions },
+      { key: 'deliveryNote', label: '배송 안내', type: 'textarea' },
+      { key: 'minOrderQuantity', label: '최소 주문 수량', type: 'number' },
       { key: 'oemAvailable', label: 'OEM 가능', type: 'checkbox' },
       { key: 'isActive', label: '사용', type: 'checkbox' },
+    ],
+  },
+  {
+    id: 'material_orders',
+    name: '기사 자재 구매관리',
+    adminRoles: ['super_admin', 'ops_admin'],
+    list: '/api/admin/material-orders',
+    patchBase: '/api/admin/material-orders',
+    bulkDelete: false,
+    quickFilters: [{ key: 'status', label: '상태', options: materialOrderStatusOptions }],
+    formCreate: null,
+    formEdit: [
+      { key: 'status', label: '상태', type: 'select', options: materialOrderStatusOptions },
+      { key: 'sellerMemo', label: '판매자 메모', type: 'textarea' },
+      { key: 'adminMemo', label: '관리자 메모', type: 'textarea' },
     ],
   },
 ];
@@ -425,8 +467,9 @@ const $modalForm = document.getElementById('modalForm');
 const $modalCancel = document.getElementById('modalCancel');
 const $modalBackdrop = document.getElementById('modalBackdrop');
 const ALLOWED_ROLES = ['dispatch_admin', 'ops_admin', 'finance_admin', 'super_admin'];
-const DISPATCH_READONLY_TABS = new Set(['dashboard', 'bookings', 'emergency_leads', 'settlements', 'payments', 'extra_quotes', 'settlement_events']);
-const DISPATCH_VISIBLE_TABS = new Set(['dashboard', 'settlements', 'payments', 'extra_quotes', 'settlement_events', 'emergency_leads', 'bookings']);
+const READONLY_BY_ROLE = {
+  dispatch_admin: new Set(['dashboard', 'bookings', 'emergency_leads', 'settlements', 'extra_quotes', 'settlement_events']),
+};
 let activeRole = (() => {
   try {
     const q = new URL(location.href).searchParams.get('role');
@@ -441,12 +484,11 @@ function currentRole() {
 }
 
 function isReadOnlyForActiveTab() {
-  return currentRole() === 'dispatch_admin' && DISPATCH_READONLY_TABS.has(active.id);
+  return READONLY_BY_ROLE[currentRole()]?.has(active.id) || false;
 }
 
 function getVisibleTabs() {
-  if (currentRole() !== 'dispatch_admin') return tabs;
-  return tabs.filter((t) => DISPATCH_VISIBLE_TABS.has(t.id));
+  return tabs.filter((t) => (t.adminRoles || []).includes(currentRole()));
 }
 
 function currentAccountView() {
@@ -529,6 +571,28 @@ async function req(url, opt = {}) {
   return json.data;
 }
 
+async function openPreview(kind, id) {
+  const endpoint =
+    kind === 'seller'
+      ? `/api/admin/sellers/${encodeURIComponent(id)}/preview-session`
+      : `/api/admin/technicians/${encodeURIComponent(id)}/preview-session`;
+  try {
+    const preview = await req(endpoint);
+    const key = window.ACnowSession?.KEY || 'acnow.session.v1';
+    sessionStorage.setItem(
+      key,
+      JSON.stringify({
+        ...preview,
+        signedInAt: new Date().toISOString(),
+        previewReturn: location.href,
+      }),
+    );
+    location.href = '/dashboard.html?preview=admin';
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
 function patchUrlFor(tab, id) {
   if (typeof tab.patchUrl === 'function') return tab.patchUrl(id);
   const base = tab.patchBase || tab.list;
@@ -543,16 +607,44 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+function isInternalIdentifierKey(key) {
+  const raw = String(key || '');
+  const lower = raw.toLowerCase();
+  if (lower === 'id') return true;
+  if (/_id$/i.test(raw)) return true;
+  if (/Id$/.test(raw)) return true;
+  return false;
+}
+
+function isSensitiveDisplayKey(key) {
+  const lower = String(key || '').toLowerCase();
+  return lower.includes('password') || lower.includes('hash') || lower.includes('token');
+}
+
+function displayKeysFor(row) {
+  return Object.keys(row).filter((k) => !isInternalIdentifierKey(k) && !isSensitiveDisplayKey(k));
+}
+
+function sanitizeForDisplay(value) {
+  if (Array.isArray(value)) return value.map(sanitizeForDisplay);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !isInternalIdentifierKey(key) && !isSensitiveDisplayKey(key))
+      .map(([key, val]) => [key, sanitizeForDisplay(val)]),
+  );
+}
+
 function formatDetailPanel(row) {
   if (!row) return '';
-  let text = JSON.stringify(row, null, 2);
+  let text = JSON.stringify(sanitizeForDisplay(row), null, 2);
   if (active.id === 'bookings' && row.sourceEmergencyLeadId) {
-    text += `\n---\n원본 긴급 접수 리드 · ${String(row.sourceEmergencyLeadId)}\n(주문 초안은 긴급 접수 탭의 convertedOrderId 또는 설치주문 목록 참고)`;
+    text += '\n---\n긴급 접수에서 전환된 주문입니다.';
   }
   if (active.id === 'emergency_leads') {
     const lines = [];
-    if (row.convertedOrderId) lines.push(`전환 주문(order): ${row.convertedOrderId}`);
-    if (row.convertedBookingId) lines.push(`호환 필드(convertedBookingId): ${row.convertedBookingId}`);
+    if (row.convertedOrderId) lines.push('주문 전환 완료');
+    if (row.convertedBookingId) lines.push('이전 호환 필드가 남아 있습니다.');
     if (lines.length) text += `\n---\n${lines.join('\n')}`;
   }
   if (active.id === 'extra_quotes' && Array.isArray(row.items)) {
@@ -564,7 +656,7 @@ function formatDetailPanel(row) {
 
 function formatCell(v) {
   if (v === null || v === undefined) return '';
-  if (typeof v === 'object') return JSON.stringify(v);
+  if (typeof v === 'object') return JSON.stringify(sanitizeForDisplay(v));
   const s = String(v);
   return s.length > 28 ? `${s.slice(0, 28)}…` : s;
 }
@@ -619,8 +711,10 @@ function tableForRows(items, tab) {
   if (!items.length) return '<p class="muted">데이터 없음</p>';
   const selectable = tab.selectable !== false;
   const sample = items[0];
-  const keys = Object.keys(sample).filter((k) => k !== 'id');
+  const keys = displayKeysFor(sample);
   const displayKeys = keys.slice(0, 6);
+  const canEdit = Boolean(tab.formEdit) && !isReadOnlyForActiveTab();
+  const hasRowAction = canEdit || selectable;
   const checkHead = selectable
     ? `<th class="col-check"><input type="checkbox" id="checkAll" class="row-check" title="전체 선택" /></th>`
     : '';
@@ -628,14 +722,19 @@ function tableForRows(items, tab) {
     selectable
       ? `<td class="col-check"><input type="checkbox" class="row-check row-cb" value="${escapeHtml(id)}" /></td>`
       : '';
-  const head = `${checkHead}<th class="col-id">ID</th>${displayKeys.map((k) => `<th>${escapeHtml(k)}</th>`).join('')}`;
+  const actionHead = hasRowAction ? '<th class="col-actions">관리</th>' : '';
+  const actionCell = (id) =>
+    hasRowAction
+      ? `<td class="col-actions"><button type="button" class="row-action" data-row-action="${canEdit ? 'edit' : 'select'}" data-id="${escapeHtml(id)}">${canEdit ? '수정' : '보기'}</button></td>`
+      : '';
+  const head = `${checkHead}${displayKeys.map((k) => `<th>${escapeHtml(k)}</th>`).join('')}${actionHead}`;
   const body = items
     .map((r) => {
       const cells = displayKeys.map((k) => `<td>${escapeHtml(formatCell(r[k]))}</td>`).join('');
       return `<tr data-id="${escapeHtml(r.id)}" class="data-row">
         ${checkCell(r.id)}
-        <td class="col-id"><button type="button" class="id-link" data-id="${escapeHtml(r.id)}">${escapeHtml(r.id)}</button></td>
         ${cells}
+        ${actionCell(r.id)}
       </tr>`;
     })
     .join('');
@@ -658,13 +757,13 @@ function wireTableHandlers() {
   $list.querySelectorAll('.row-cb').forEach((cb) => {
     cb.addEventListener('click', (e) => e.stopPropagation());
   });
-  $list.querySelectorAll('.id-link').forEach((btn) => {
+  $list.querySelectorAll('.row-action').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = btn.dataset.id;
       const row = rows.find((r) => r.id === id);
       if (!row) return;
-      if (isReadOnlyForActiveTab() || !activeConfig().formEdit) {
+      if (btn.dataset.rowAction !== 'edit' || isReadOnlyForActiveTab() || !activeConfig().formEdit) {
         selected = row;
         $detail.textContent = formatDetailPanel(selected);
         renderActions();
@@ -763,6 +862,29 @@ function renderToolbar() {
   if (r) r.onclick = load;
 }
 
+function technicianOptionLabel(row) {
+  return [row.name, row.phone, row.baseRegion].filter(Boolean).join(' · ') || '승인 기사';
+}
+
+async function fillApprovedTechnicianSelect(select, currentId) {
+  select.innerHTML = '<option value="">승인 기사 불러오는 중</option>';
+  try {
+    const items = await req('/api/admin/technicians');
+    const approved = (Array.isArray(items) ? items : []).filter((row) => row.status === 'approved');
+    select.innerHTML = '<option value="">승인 기사 선택</option>';
+    approved.forEach((row) => {
+      const option = document.createElement('option');
+      option.value = row.id;
+      option.textContent = technicianOptionLabel(row);
+      if (currentId && row.id === currentId) option.selected = true;
+      select.appendChild(option);
+    });
+    if (!approved.length) select.innerHTML = '<option value="">승인 기사가 없습니다</option>';
+  } catch (err) {
+    select.innerHTML = '<option value="">기사 목록 로드 실패</option>';
+  }
+}
+
 function renderActions() {
   const cfg = activeConfig();
   const activeId = cfg.id;
@@ -776,26 +898,29 @@ function renderActions() {
     return;
   }
   if (isReadOnlyForActiveTab()) {
-    $actions.innerHTML = '<span class="muted">기사 role은 이 탭에서 조회만 가능합니다.</span>';
+    $actions.innerHTML = `<span class="muted">${escapeHtml(currentRole())} role은 이 탭에서 조회만 가능합니다.</span>`;
     return;
   }
   if (activeId === 'customers' || activeId === 'admins') {
     $actions.innerHTML = `<button data-s="active">활성</button><button data-s="inactive">비활성</button><button data-s="banned">차단</button>`;
     $actions.querySelectorAll('button').forEach((b) => (b.onclick = () => patch(`${cfg.list}/${selected.id}`, { status: b.dataset.s })));
   } else if (activeId === 'sellers') {
-    $actions.innerHTML = `<button data-s="approved">승인</button><button data-s="reviewing">검토중</button><button data-s="suspended">정지</button><button data-s="rejected">반려</button>`;
-    $actions.querySelectorAll('button').forEach((b) => (b.onclick = () => patch(`${cfg.list}/${selected.id}`, { status: b.dataset.s })));
+    $actions.innerHTML = `<button data-s="approved">승인</button><button data-s="reviewing">검토중</button><button data-s="suspended">정지</button><button data-s="rejected">반려</button><button id="sellerPreview" class="primary" type="button">판매자 화면 보기</button>`;
+    $actions.querySelectorAll('button[data-s]').forEach((b) => (b.onclick = () => patch(`${cfg.list}/${selected.id}`, { status: b.dataset.s })));
+    document.getElementById('sellerPreview').onclick = () => openPreview('seller', selected.id);
   } else if (activeId === 'technicians') {
-    $actions.innerHTML = `<button data-s="approved">승인</button><button data-s="suspended">정지</button><button data-b="verified">계좌검증</button><button data-b="rejected">계좌반려</button>`;
+    $actions.innerHTML = `<button data-s="approved">승인</button><button data-s="suspended">정지</button><button data-b="verified">계좌검증</button><button data-b="rejected">계좌반려</button><button id="technicianPreview" class="primary" type="button">기사 화면 보기</button>`;
     $actions.querySelectorAll('button[data-s]').forEach((b) => (b.onclick = () => patch(`${cfg.list}/${selected.id}`, { status: b.dataset.s })));
     $actions.querySelectorAll('button[data-b]').forEach((b) => (b.onclick = () => patch(`${cfg.list}/${selected.id}`, { bankVerificationStatus: b.dataset.b })));
+    document.getElementById('technicianPreview').onclick = () => openPreview('technician', selected.id);
   } else if (activeId === 'onboarding') {
     $actions.innerHTML = `<button data-s="reviewing">검토중</button><button data-s="approved">승인</button><button data-s="rejected">반려</button>`;
     $actions
       .querySelectorAll('button')
       .forEach((b) => (b.onclick = () => post(`/api/admin/technician-onboarding/${selected.id}/review`, { status: b.dataset.s })));
   } else if (activeId === 'bookings') {
-    $actions.innerHTML = `<button type="button" id="orderMockPay">테스트결제 확정</button><button id="toMatching">matching</button><button id="assign">기사 UUID 배정</button><button id="unassign">배정해제</button><button id="toDone">completed</button>`;
+    $actions.innerHTML = `<button type="button" id="orderMockPay">테스트결제 확정</button><button id="toMatching">matching</button><select id="assignTechnician" aria-label="배정 기사 선택"></select><button id="assign">기사 배정</button><button id="unassign">배정해제</button><button id="toDone">completed</button>`;
+    fillApprovedTechnicianSelect(document.getElementById('assignTechnician'), selected.assignedTechnicianId);
     document.getElementById('orderMockPay').onclick = async () => {
       try {
         await req(`/api/payments/mock-confirm`, { method: 'POST', body: JSON.stringify({ orderId: selected.id }) });
@@ -807,9 +932,9 @@ function renderActions() {
     document.getElementById('toMatching').onclick = () =>
       patch(`/api/admin/customer-orders/${selected.id}`, { orderStatus: 'matching' });
     document.getElementById('assign').onclick = () => {
-      const technicianId = prompt('배정할 승인 기사 UUID를 입력하세요.', selected.assignedTechnicianId || '');
+      const technicianId = document.getElementById('assignTechnician')?.value || '';
       if (!technicianId) return;
-      patch(`/api/admin/customer-orders/${selected.id}`, { orderStatus: 'assigned', assignedTechnicianId: technicianId.trim() });
+      patch(`/api/admin/customer-orders/${selected.id}`, { orderStatus: 'assigned', assignedTechnicianId: technicianId });
     };
     document.getElementById('unassign').onclick = () =>
       patch(`/api/admin/customer-orders/${selected.id}`, { orderStatus: 'matching', assignedTechnicianId: null });
@@ -849,15 +974,18 @@ function renderActions() {
     b.onclick = () => patch(`/api/admin/settlements/${selected.id}/status`, { status: 'paid' });
     c.onclick = () => patch(`/api/admin/settlements/${selected.id}/status`, { status: 'held' });
   } else if (activeId === 'settlement_events') {
-    $actions.innerHTML = '<span class="muted">정산 상태 변경, 확정, 취소 처리의 감사 이력을 조회합니다. 주문 UUID 필터를 사용할 수 있습니다.</span>';
+    $actions.innerHTML = '<span class="muted">정산 상태 변경, 확정, 취소 처리의 감사 이력을 조회합니다. 주문 검색값 필터를 사용할 수 있습니다.</span>';
   } else if (activeId === 'admin_logs') {
-    $actions.innerHTML = '<span class="muted">관리자 CRUD/상태 변경 로그입니다. 검색으로 action, targetTable, targetId, payload를 찾을 수 있습니다.</span>';
+    $actions.innerHTML = '<span class="muted">관리자 CRUD/상태 변경 로그입니다. 검색으로 작업명, 대상 테이블, 변경 내용을 찾을 수 있습니다.</span>';
   } else if (activeId === 'emergency_leads') {
     $actions.innerHTML =
-      '<span class="muted">행 선택 후 ID 또는 행 클릭 → 매칭상태만 수정합니다. 공개 접수는 고객 폼에서 저장됩니다.</span>';
+      '<span class="muted">행 선택 후 수정 버튼 또는 행 클릭으로 매칭상태를 관리합니다. 공개 접수는 고객 폼에서 저장됩니다.</span>';
   } else if (activeId === 'service_products' || activeId === 'service_addons' || activeId === 'materials') {
     $actions.innerHTML =
-      '<span class="muted">목록 행(ID) 클릭으로 가격을 수정합니다. 선택 삭제는 비활성 처리입니다. 판매자 공급가도 DB row 기준으로 관리합니다.</span>';
+      '<span class="muted">목록 행의 수정 버튼으로 가격을 수정합니다. 선택 삭제는 비활성 처리입니다. 판매자 공급가도 DB row 기준으로 관리합니다.</span>';
+  } else if (activeId === 'material_orders') {
+    $actions.innerHTML =
+      '<span class="muted">구매요청 행의 수정 버튼으로 상태와 메모를 관리합니다. 실제 결제는 아직 연결하지 않은 요청형 MVP입니다.</span>';
   }
 }
 
@@ -900,7 +1028,7 @@ function openModal(mode, record) {
   }
   modalState = { mode, record };
   const title = active.accountHub ? `${active.name} · ${cfg.name}` : active.name;
-  $modalTitle.textContent = mode === 'create' ? `${title} — 새로 만들기` : `${title} — 수정 (${record.id})`;
+  $modalTitle.textContent = mode === 'create' ? `${title} — 새로 만들기` : `${title} — 수정`;
   $modalForm.innerHTML = fields
     .map((f) => buildFieldHtml(f, record && record[f.key] !== undefined ? record[f.key] : ''))
     .join('');

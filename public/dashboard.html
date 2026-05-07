@@ -95,6 +95,22 @@
       .scope-list li { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid #eef2f7; }
       .scope-list li:last-child { border-bottom: 0; }
       .scope-list span { color: var(--muted); font-size: 13px; }
+      .preview-banner {
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        padding: 12px 14px;
+        border: 1px solid #bfdbfe;
+        border-radius: 14px;
+        background: #eff6ff;
+        color: #1e3a8a;
+      }
+      .preview-banner.active { display: flex; }
+      .preview-banner strong { display: block; font-size: 14px; }
+      .preview-banner span { color: #475569; font-size: 13px; }
+      .preview-banner .btn { background: #fff; color: var(--ink); }
       .hidden { display: none !important; }
       @media (max-width: 860px) {
         .top, .head { align-items: flex-start; grid-template-columns: 1fr; flex-direction: column; }
@@ -124,6 +140,13 @@
         </div>
         <div class="actions" id="topActions"></div>
       </header>
+      <section class="preview-banner" id="previewBanner">
+        <div>
+          <strong>관리자 운영 미리보기</strong>
+          <span>실제 역할 화면을 읽기 전용으로 확인합니다.</span>
+        </div>
+        <button class="btn" id="previewBack" type="button">관리자 화면으로 돌아가기</button>
+      </section>
       <section class="summary" id="summary"></section>
       <section class="workspace" id="workspace"></section>
     </main>
@@ -138,6 +161,10 @@
       const topActions = document.getElementById('topActions');
       const summary = document.getElementById('summary');
       const workspace = document.getElementById('workspace');
+      const previewBanner = document.getElementById('previewBanner');
+      const previewBack = document.getElementById('previewBack');
+      const isPreview = Boolean(session?.preview) || new URL(location.href).searchParams.get('preview') === 'admin';
+      const previewReturn = session?.previewReturn || '/admin/index.html';
 
       const roleLabels = {
         customer: '고객',
@@ -180,12 +207,48 @@
         }).join('')}</tr>`).join('')}</tbody></table>`;
       }
 
+      function money(value) {
+        const n = Number(value ?? 0);
+        return Number.isFinite(n) ? n.toLocaleString('ko-KR') : '0';
+      }
+
+      function canWrite() {
+        return !isPreview;
+      }
+
       function setShell(role, description) {
         const label = roleLabels[role] || role;
+        const displayName = session ? window.ACnowSession.displayName(session) : label;
         roleBadge.textContent = label;
-        title.textContent = `${label} 대시보드`;
+        title.textContent = `${displayName} 대시보드`;
         lead.textContent = description;
         if (session) topLogout.classList.remove('hidden');
+        previewBanner.classList.toggle('active', isPreview);
+      }
+
+      function renderTechnicianPending() {
+        setShell('technician', '기사 신청은 접수됐고 운영 검토가 끝나면 배정 작업과 정산 화면을 사용할 수 있습니다.');
+        topActions.innerHTML = '';
+        summary.innerHTML = [
+          metric('신청 상태', session.status || 'pending'),
+          metric('배정 주문', '-'),
+          metric('자재 항목', '-'),
+          metric('정산 대기', '-'),
+        ].join('');
+        workspace.innerHTML = `
+          <aside class="panel">
+            <h2>검토 진행</h2>
+            <ul class="scope-list">
+              <li><strong>신청자</strong><span>${escapeHtml(window.ACnowSession.displayName(session))}</span></li>
+              <li><strong>전화번호</strong><span>${escapeHtml(session.phone || '-')}</span></li>
+              <li><strong>다음 단계</strong><span>서류와 계좌 검토 후 승인</span></li>
+            </ul>
+          </aside>
+          <section class="panel">
+            <h2>승인 후 열리는 기능</h2>
+            <p class="muted">승인이 완료되면 배정 주문, 출발/작업/완료 상태 변경, 자재 항목, 정산 내역을 이 대시보드에서 확인합니다.</p>
+          </section>
+        `;
       }
 
       function renderLoggedOut() {
@@ -220,6 +283,7 @@
           ['리워드/쿠폰', '쿠폰 발급, 상태 변경, 삭제', '/admin/index.html?role=super_admin&tab=rewards'],
           ['결제/정산', '정산 확정, 지급, 보류, 취소', '/admin/index.html?role=super_admin&tab=settlements'],
           ['상품/가격', '설치/청소 상품과 추가금 항목', '/admin/index.html?role=super_admin&tab=service_products'],
+          ['기사 자재 구매관리', '기사 구매요청 확인과 상태 관리', '/admin/index.html?role=super_admin&tab=material_orders'],
         ];
         workspace.innerHTML = `
           <aside class="panel">
@@ -247,19 +311,22 @@
         const data = await api(`/api/sellers/${encodeURIComponent(session.id)}/dashboard`);
         const seller = data.seller;
         const materials = data.materials || [];
+        const materialOrders = data.materialOrders || [];
         summary.innerHTML = [
           metric('상태', seller.status),
           metric('상호명', seller.companyName),
           metric('취급 품목', seller.productCategory || '-'),
-          metric('등록 공급가', materials.length),
+          metric('판매 상품', materials.length),
+          metric('판매 요청', materialOrders.length),
         ].join('');
         workspace.innerHTML = `
           <aside class="panel">
             <h2>판매자 권한 범위</h2>
             <ul class="scope-list">
-              <li><strong>표시</strong><span>판매자 정보와 공급가</span></li>
+              <li><strong>표시</strong><span>판매자 정보, 상품, 판매 요청</span></li>
               <li><strong>숨김</strong><span>고객, 기사, 관리자 메뉴</span></li>
               <li><strong>상태</strong><span>${escapeHtml(seller.status)}</span></li>
+              ${isPreview ? '<li><strong>미리보기</strong><span>쓰기 액션 비활성</span></li>' : ''}
             </ul>
           </aside>
           <section class="stack">
@@ -274,7 +341,7 @@
               ])}
             </div>
             <div class="panel">
-              <h2>자재/판매가 등록</h2>
+              <h2>상품 등록</h2>
               <form id="sellerMaterialForm">
                 <div class="row">
                   <label>자재/상품명<input name="name" required /></label>
@@ -289,27 +356,56 @@
                   <label>기사 인정 원가<input name="technicianCostAllowance" type="number" min="0" /></label>
                 </div>
                 <div class="row">
+                  <label>재고<input name="stockQuantity" type="number" min="0" value="1" required /></label>
+                  <label>최소 주문 수량<input name="minOrderQuantity" type="number" min="1" value="1" /></label>
+                </div>
+                <div class="row">
                   <label>수수료율<input name="platformFeeRate" type="number" min="0" max="1" step="0.01" placeholder="0.2" /></label>
                   <label>OEM 가능<select name="oemAvailable"><option value="false">아니오</option><option value="true">예</option></select></label>
                 </div>
-                <button class="btn primary" type="submit">공급가 등록</button>
+                <label>이미지 URL<input name="imageUrl" placeholder="https://..." /></label>
+                <label>상품 설명<textarea name="description" placeholder="기사에게 보여줄 상품 설명"></textarea></label>
+                <label>배송 안내<textarea name="deliveryNote" placeholder="출고일, 배송 방식, 픽업 가능 여부"></textarea></label>
+                <button class="btn primary" type="submit" ${canWrite() ? '' : 'disabled'}>${canWrite() ? '상품 등록' : '미리보기 중 등록 불가'}</button>
               </form>
             </div>
             <div class="panel">
-              <h2>등록한 자재/판매가</h2>
+              <h2>등록한 상품</h2>
               ${table(materials, [
                 { label: '품목', key: 'name' },
                 { label: '코드', key: 'code' },
-                { label: '고객가', render: (r) => Number(r.customerPrice || 0).toLocaleString('ko-KR') },
-                { label: '기사 원가', render: (r) => Number(r.technicianCostAllowance || 0).toLocaleString('ko-KR') },
-                { label: '상태', render: (r) => r.isActive ? '사용' : '비활성' },
-                { label: '동작', html: true, render: (r) => `<button class="btn" data-material-edit="${escapeHtml(r.id)}">가격수정</button> <button class="btn danger" data-material-delete="${escapeHtml(r.id)}">비활성</button>` },
-              ], '등록한 공급가가 없습니다.')}
+                { label: '판매가', render: (r) => money(r.customerPrice) },
+                { label: '재고', render: (r) => `${Number(r.stockQuantity || 0).toLocaleString('ko-KR')}개` },
+                { label: '상태', render: (r) => r.isActive ? (r.marketStatus || 'active') : '비활성' },
+                { label: '동작', html: true, render: (r) => canWrite() ? `<button class="btn" data-material-edit="${escapeHtml(r.id)}">수정</button> <button class="btn danger" data-material-delete="${escapeHtml(r.id)}">비활성</button>` : '-' },
+              ], '등록한 상품이 없습니다.')}
+            </div>
+            <div class="panel">
+              <h2>판매 요청</h2>
+              ${table(materialOrders, [
+                { label: '주문번호', key: 'orderNo' },
+                { label: '기사', key: 'technicianName' },
+                { label: '상태', key: 'status' },
+                { label: '금액', render: (r) => money(r.totalAmount) },
+                { label: '요청상품', render: (r) => (r.items || []).map((it) => `${it.name} × ${it.quantity}`).join(', ') || '-' },
+                { label: '동작', html: true, render: (r) => canWrite() ? `
+                  <select data-material-order-status="${escapeHtml(r.id)}">
+                    ${['requested','confirmed','preparing','shipped','delivered','cancelled'].map((s) => `<option value="${s}" ${r.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+                  </select>
+                  <button class="btn" data-material-order-save="${escapeHtml(r.id)}">저장</button>
+                ` : '-' },
+              ], '판매 요청이 없습니다.')}
             </div>
           </section>
         `;
+        if (!canWrite()) {
+          workspace.querySelectorAll('form input, form select, form textarea').forEach((el) => {
+            el.disabled = true;
+          });
+        }
         document.getElementById('sellerMaterialForm').addEventListener('submit', async (event) => {
           event.preventDefault();
+          if (!canWrite()) return;
           const fd = new FormData(event.currentTarget);
           await api(`/api/sellers/${encodeURIComponent(session.id)}/materials`, {
             method: 'POST',
@@ -321,6 +417,11 @@
               customerPrice: Number(fd.get('customerPrice') || 0),
               technicianCostAllowance: fd.get('technicianCostAllowance') ? Number(fd.get('technicianCostAllowance')) : undefined,
               platformFeeRate: fd.get('platformFeeRate') ? Number(fd.get('platformFeeRate')) : undefined,
+              stockQuantity: Number(fd.get('stockQuantity') || 0),
+              minOrderQuantity: Number(fd.get('minOrderQuantity') || 1),
+              description: String(fd.get('description') || '').trim() || undefined,
+              imageUrl: String(fd.get('imageUrl') || '').trim() || undefined,
+              deliveryNote: String(fd.get('deliveryNote') || '').trim() || undefined,
               oemAvailable: fd.get('oemAvailable') === 'true',
             }),
           });
@@ -328,18 +429,23 @@
         });
         workspace.querySelectorAll('[data-material-edit]').forEach((btn) => {
           btn.addEventListener('click', async () => {
+            if (!canWrite()) return;
             const row = materials.find((m) => m.id === btn.dataset.materialEdit);
             if (!row) return;
             const price = prompt('고객가를 입력하세요.', row.customerPrice ?? 0);
             if (price === null) return;
             const cost = prompt('기사 인정 원가를 입력하세요.', row.technicianCostAllowance ?? '');
             const fee = prompt('플랫폼 수수료율(0~1)을 입력하세요.', row.platformFeeRate ?? '');
+            const stock = prompt('재고 수량을 입력하세요.', row.stockQuantity ?? 0);
+            if (stock === null) return;
             await api(`/api/sellers/${encodeURIComponent(session.id)}/materials/${encodeURIComponent(row.id)}`, {
               method: 'PATCH',
               body: JSON.stringify({
                 customerPrice: Number(price),
                 technicianCostAllowance: cost === '' ? undefined : Number(cost),
                 platformFeeRate: fee === '' ? undefined : Number(fee),
+                stockQuantity: Number(stock),
+                marketStatus: Number(stock) > 0 ? 'active' : 'sold_out',
               }),
             });
             await renderSeller();
@@ -347,9 +453,23 @@
         });
         workspace.querySelectorAll('[data-material-delete]').forEach((btn) => {
           btn.addEventListener('click', async () => {
+            if (!canWrite()) return;
             if (!confirm('이 공급가를 비활성화할까요?')) return;
             await api(`/api/sellers/${encodeURIComponent(session.id)}/materials/${encodeURIComponent(btn.dataset.materialDelete)}`, {
               method: 'DELETE',
+            });
+            await renderSeller();
+          });
+        });
+        workspace.querySelectorAll('[data-material-order-save]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            if (!canWrite()) return;
+            const orderId = btn.dataset.materialOrderSave;
+            const select = workspace.querySelector(`[data-material-order-status="${CSS.escape(orderId)}"]`);
+            if (!orderId || !select) return;
+            await api(`/api/sellers/${encodeURIComponent(session.id)}/material-orders/${encodeURIComponent(orderId)}`, {
+              method: 'PATCH',
+              body: JSON.stringify({ status: select.value }),
             });
             await renderSeller();
           });
@@ -361,6 +481,7 @@
       }
 
       function jobActions(job) {
+        if (!canWrite()) return '-';
         const id = escapeHtml(job.id);
         if (job.orderStatus === 'assigned') return `<button class="btn" data-job="${id}" data-action="accept">수락</button>`;
         if (job.orderStatus === 'accepted') return `<button class="btn" data-job="${id}" data-action="depart">출발</button><button class="btn" data-job="${id}" data-action="start">작업시작</button>`;
@@ -370,18 +491,24 @@
       }
 
       async function runJobAction(orderId, action) {
+        if (!canWrite()) return;
         await api(`/api/technician/jobs/${orderId}/${action}`, { method: 'PATCH', headers: technicianHeaders() });
         await renderTechnician();
       }
 
       async function renderTechnician() {
+        if (session.status && session.status !== 'approved') {
+          renderTechnicianPending();
+          return;
+        }
         setShell('technician', '기사는 본인에게 배정된 주문, 작업 상태, 자재, 정산만 확인합니다.');
         topActions.innerHTML = '';
-        const [me, jobs, materials, settlements] = await Promise.all([
+        const [me, jobs, materials, settlements, materialOrders] = await Promise.all([
           api('/api/technician/me', { headers: technicianHeaders() }),
           api('/api/technician/jobs', { headers: technicianHeaders() }),
           api('/api/technician/materials', { headers: technicianHeaders() }).catch(() => []),
           api('/api/technician/settlements', { headers: technicianHeaders() }).catch(() => []),
+          api('/api/technician/material-orders', { headers: technicianHeaders() }).catch(() => []),
         ]);
         const pendingPayout = settlements
           .filter((s) => s.status === 'pending')
@@ -390,6 +517,7 @@
           metric('작업 상태', me.workStatus),
           metric('배정 주문', jobs.length),
           metric('자재 항목', materials.length),
+          metric('구매요청', materialOrders.length),
           metric('정산 대기', pendingPayout.toLocaleString('ko-KR')),
         ].join('');
         workspace.innerHTML = `
@@ -400,6 +528,7 @@
                 <li><strong>이름</strong><span>${escapeHtml(me.name)}</span></li>
                 <li><strong>지역</strong><span>${escapeHtml(me.baseRegion || '-')}</span></li>
                 <li><strong>권한</strong><span>본인 작업만</span></li>
+                ${isPreview ? '<li><strong>미리보기</strong><span>쓰기 액션 비활성</span></li>' : ''}
               </ul>
             </section>
             <section class="panel">
@@ -407,7 +536,8 @@
               ${table(materials.slice(0, 8), [
                 { label: '자재', key: 'name' },
                 { label: '단위', key: 'unit' },
-                { label: '고객가', render: (r) => r.customerPrice == null ? '-' : Number(r.customerPrice).toLocaleString('ko-KR') },
+                { label: '판매가', render: (r) => r.customerPrice == null ? '-' : money(r.customerPrice) },
+                { label: '재고', render: (r) => Number(r.stockQuantity || 0).toLocaleString('ko-KR') },
               ])}
             </section>
           </aside>
@@ -421,6 +551,15 @@
                 { label: '주소', key: 'addressSummary' },
                 { label: '액션', html: true, render: jobActions },
               ], '배정된 주문이 없습니다.')}
+            </div>
+            <div class="panel">
+              <h2>자재 구매내역</h2>
+              ${table(materialOrders.slice(0, 8), [
+                { label: '주문번호', key: 'orderNo' },
+                { label: '판매자', key: 'sellerName' },
+                { label: '상태', key: 'status' },
+                { label: '금액', render: (r) => money(r.totalAmount) },
+              ], '자재 구매요청이 없습니다.')}
             </div>
             <div class="panel">
               <h2>정산</h2>
@@ -523,7 +662,7 @@
                 { label: '지역', key: 'location' },
                 { label: '유형', key: 'airconType' },
                 { label: '상태', key: 'status' },
-                { label: '전환 주문', key: 'convertedOrderId' },
+                { label: '주문 전환', render: (r) => r.convertedOrderId ? '전환 완료' : '상담 진행중' },
               ], '문의 내역이 없습니다.')}
             </div>
           </section>
@@ -556,6 +695,11 @@
       }
 
       window.ACnowSession?.bindLogout();
+      if (previewBack) {
+        previewBack.addEventListener('click', () => {
+          window.location.href = previewReturn;
+        });
+      }
       boot();
     </script>
   </body>

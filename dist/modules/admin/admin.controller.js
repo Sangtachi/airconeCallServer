@@ -95,6 +95,18 @@ let AdminController = class AdminController {
     deleteMaterial(id) {
         return this.service.deleteMaterial(id);
     }
+    getMaterialOrders() {
+        return this.service.getMaterialPurchaseOrders();
+    }
+    updateMaterialOrder(id, dto) {
+        return this.service.updateAdminMaterialPurchaseOrder(id, dto);
+    }
+    sellerPreviewSession(id) {
+        return this.service.sellerPreviewSession(id);
+    }
+    technicianPreviewSession(id) {
+        return this.service.technicianPreviewSession(id);
+    }
     getPayments() { return this.service.getPayments(); }
     cancelPayment(id, dto, idempotencyKey) {
         return this.service.cancelPayment(id, dto, idempotencyKey);
@@ -374,6 +386,38 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "deleteMaterial", null);
+__decorate([
+    (0, common_1.Get)('material-orders'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getMaterialOrders", null);
+__decorate([
+    (0, common_1.Patch)('material-orders/:id'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, admin_dto_1.UpdateMaterialPurchaseOrderDto]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "updateMaterialOrder", null);
+__decorate([
+    (0, common_1.Get)('sellers/:id/preview-session'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "sellerPreviewSession", null);
+__decorate([
+    (0, common_1.Get)('technicians/:id/preview-session'),
+    (0, admin_role_guard_1.AdminRoles)('ops_admin'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "technicianPreviewSession", null);
 __decorate([
     (0, common_1.Get)('payments'),
     (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'finance_admin'),

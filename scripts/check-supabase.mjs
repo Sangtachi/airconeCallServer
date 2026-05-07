@@ -1,15 +1,24 @@
 #!/usr/bin/env node
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadEnvFile } from 'node:process';
+import { parseEnv } from 'node:util';
 import { createClient } from '@supabase/supabase-js';
 
 function loadEnvFiles() {
   const env = process.env.NODE_ENV?.trim() || 'development';
-  const candidates = [`.env.${env}.local`, '.env.local', `.env.${env}`, '.env'];
+  const candidates = ['.env', `.env.${env}`, '.env.local', `.env.${env}.local`];
   for (const name of candidates) {
     const path = join(process.cwd(), name);
-    if (existsSync(path)) loadEnvFile(path);
+    if (!existsSync(path)) continue;
+    if (env === 'production') {
+      loadEnvFile(path);
+    } else {
+      const parsed = parseEnv(readFileSync(path, 'utf8'));
+      for (const [key, value] of Object.entries(parsed)) {
+        process.env[key] = value;
+      }
+    }
   }
 }
 

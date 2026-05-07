@@ -10,6 +10,7 @@ import {
   RegisterSellerDto,
   UpdateAirconAssetDto,
   UpdateMaterialDto,
+  UpdateMaterialPurchaseOrderDto,
   UpdateMemberAddressDto,
   UseCouponDto,
 } from './admin.dto';
@@ -160,5 +161,21 @@ export class SellerPublicController {
   @ApiOperation({ summary: '판매자 자재/공급가 비활성화(Supabase materials)' })
   deleteMaterial(@Param('id') id: string, @Param('materialId') materialId: string) {
     return this.admin.deleteSellerMaterial(id, materialId);
+  }
+
+  @Get(':id/material-orders')
+  @ApiOperation({ summary: '판매자 자재 구매요청 목록(Supabase material_purchase_orders)' })
+  materialOrders(@Param('id') id: string) {
+    return this.admin.sellerMaterialOrders(id);
+  }
+
+  @Patch(':id/material-orders/:orderId')
+  @ApiOperation({ summary: '판매자 자재 구매요청 상태 변경(Supabase material_purchase_orders)' })
+  updateMaterialOrder(
+    @Param('id') id: string,
+    @Param('orderId') orderId: string,
+    @Body() dto: UpdateMaterialPurchaseOrderDto,
+  ) {
+    return this.admin.updateSellerMaterialPurchaseOrder(id, orderId, dto);
   }
 }

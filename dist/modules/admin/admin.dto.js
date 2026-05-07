@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateAdminInviteDto = exports.ReviewOnboardingDto = exports.UpdateCouponDto = exports.CreateCouponDto = exports.UpdateSettlementStatusDto = exports.ConfirmSettlementDto = exports.CancelPaymentDto = exports.UpdateOnboardingDto = exports.UpdateTechnicianDto = exports.UpdateBookingDto = exports.CreateBookingDto = exports.UpdateMaterialDto = exports.CreateMaterialDto = exports.UpdateSellerDto = exports.UpdateMemberDto = exports.CreateSellerDto = exports.RegisterSellerDto = exports.CreateOrderReviewDto = exports.UseCouponDto = exports.UpdateAirconAssetDto = exports.CreateAirconAssetDto = exports.UpdateMemberAddressDto = exports.CreateMemberAddressDto = exports.MemberSessionDto = exports.RegisterMemberDto = exports.CreateMemberDto = exports.CreateTechnicianDto = exports.UpdateBookingStatusDto = exports.AssignTechnicianDto = void 0;
+exports.CreateAdminInviteDto = exports.ReviewOnboardingDto = exports.UpdateCouponDto = exports.CreateCouponDto = exports.UpdateSettlementStatusDto = exports.ConfirmSettlementDto = exports.CancelPaymentDto = exports.UpdateOnboardingDto = exports.UpdateTechnicianDto = exports.UpdateBookingDto = exports.CreateBookingDto = exports.UpdateMaterialPurchaseOrderDto = exports.CreateMaterialPurchaseOrderDto = exports.UpdateMaterialDto = exports.CreateMaterialDto = exports.UpdateSellerDto = exports.UpdateMemberDto = exports.CreateSellerDto = exports.RegisterSellerDto = exports.CreateOrderReviewDto = exports.UseCouponDto = exports.UpdateAirconAssetDto = exports.CreateAirconAssetDto = exports.UpdateMemberAddressDto = exports.CreateMemberAddressDto = exports.MemberSessionDto = exports.RegisterMemberDto = exports.CreateMemberDto = exports.CreateTechnicianDto = exports.UpdateBookingStatusDto = exports.AssignTechnicianDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 class AssignTechnicianDto {
@@ -568,6 +568,50 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiProperty)({ required: false }),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateMaterialDto.prototype, "sellerId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMaterialDto.prototype, "description", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMaterialDto.prototype, "imageUrl", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateMaterialDto.prototype, "stockQuantity", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, enum: ['active', 'sold_out', 'hidden', 'draft'] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['active', 'sold_out', 'hidden', 'draft']),
+    __metadata("design:type", String)
+], CreateMaterialDto.prototype, "marketStatus", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMaterialDto.prototype, "deliveryNote", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], CreateMaterialDto.prototype, "minOrderQuantity", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], CreateMaterialDto.prototype, "oemAvailable", void 0);
@@ -621,6 +665,50 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiProperty)({ required: false }),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], UpdateMaterialDto.prototype, "sellerId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMaterialDto.prototype, "description", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMaterialDto.prototype, "imageUrl", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateMaterialDto.prototype, "stockQuantity", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, enum: ['active', 'sold_out', 'hidden', 'draft'] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['active', 'sold_out', 'hidden', 'draft']),
+    __metadata("design:type", String)
+], UpdateMaterialDto.prototype, "marketStatus", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMaterialDto.prototype, "deliveryNote", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], UpdateMaterialDto.prototype, "minOrderQuantity", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpdateMaterialDto.prototype, "oemAvailable", void 0);
@@ -630,6 +718,66 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpdateMaterialDto.prototype, "isActive", void 0);
+class CreateMaterialPurchaseOrderDto {
+}
+exports.CreateMaterialPurchaseOrderDto = CreateMaterialPurchaseOrderDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        type: 'array',
+        items: {
+            type: 'object',
+            properties: {
+                materialId: { type: 'string' },
+                quantity: { type: 'number' },
+            },
+        },
+    }),
+    __metadata("design:type", Array)
+], CreateMaterialPurchaseOrderDto.prototype, "items", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMaterialPurchaseOrderDto.prototype, "deliveryAddress", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMaterialPurchaseOrderDto.prototype, "recipientName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMaterialPurchaseOrderDto.prototype, "recipientPhone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMaterialPurchaseOrderDto.prototype, "requestMemo", void 0);
+class UpdateMaterialPurchaseOrderDto {
+}
+exports.UpdateMaterialPurchaseOrderDto = UpdateMaterialPurchaseOrderDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: ['requested', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled'] }),
+    (0, class_validator_1.IsIn)(['requested', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled']),
+    __metadata("design:type", String)
+], UpdateMaterialPurchaseOrderDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMaterialPurchaseOrderDto.prototype, "sellerMemo", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMaterialPurchaseOrderDto.prototype, "adminMemo", void 0);
 class CreateBookingDto {
 }
 exports.CreateBookingDto = CreateBookingDto;

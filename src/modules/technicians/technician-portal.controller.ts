@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -14,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiHeader, ApiTags } from '@nestjs/swagger';
 import type { Express } from 'express';
+import { CreateMaterialPurchaseOrderDto } from '../admin/admin.dto';
 import { TechnicianCreateQuoteDto } from '../orders/dto/extra-quotes.dto';
 import {
   TechnicianPhotoConfirmDto,
@@ -23,7 +25,13 @@ import {
 import { ExtraQuotesService } from '../orders/extra-quotes.service';
 import { OrdersService } from '../orders/orders.service';
 import { TechnicianApprovedGuard, type TechnicianRequest } from './technician-approved.guard';
-import { TechnicianOrderPhotoDto } from './technician.dto';
+import {
+  TechnicianDispatchOffersQueryDto,
+  TechnicianDispatchPreferencesDto,
+  TechnicianOrderPhotoDto,
+  TechnicianWorkStatusDto,
+} from './technician.dto';
+import { TechniciansService } from './technicians.service';
 
 const ALLOWED_IMAGE_MIME = /^image\/(jpeg|jpg|png|webp|heic|heif)$/i;
 
@@ -35,6 +43,7 @@ export class TechnicianPortalController {
   constructor(
     private readonly orders: OrdersService,
     private readonly extraQuotes: ExtraQuotesService,
+    private readonly technicians: TechniciansService,
   ) {}
 
   @Get('technician/me')
@@ -56,6 +65,46 @@ export class TechnicianPortalController {
       bankVerificationStatus: t.bankVerificationStatus,
       bankRejectReason: t.bankRejectReason,
     };
+  }
+
+  @Patch('technician/me/work-status')
+  updateWorkStatus(@Req() req: TechnicianRequest, @Body() dto: TechnicianWorkStatusDto) {
+    return this.technicians.updateWorkStatus(req.technician!.id, dto.workStatus);
+  }
+
+  @Get('technician/partner/home')
+  partnerHome(@Req() req: TechnicianRequest) {
+    return this.orders.technicianPartnerHome(req.technician!);
+  }
+
+  @Get('technician/dispatch/offers')
+  dispatchOffers(@Req() req: TechnicianRequest, @Query() query: TechnicianDispatchOffersQueryDto) {
+    return this.orders.technicianListDispatchOffers(req.technician!, query);
+  }
+
+  @Post('technician/dispatch/offers/:orderId/accept')
+  acceptDispatchOffer(@Req() req: TechnicianRequest, @Param('orderId') orderId: string) {
+    return this.orders.technicianAcceptDispatchOffer(req.technician!, orderId);
+  }
+
+  @Post('technician/dispatch/offers/:orderId/reject')
+  rejectDispatchOffer(@Req() req: TechnicianRequest, @Param('orderId') orderId: string) {
+    return this.orders.technicianRejectDispatchOffer(req.technician!, orderId);
+  }
+
+  @Get('technician/preferences')
+  preferences(@Req() req: TechnicianRequest) {
+    return this.orders.technicianGetDispatchPreferences(req.technician!);
+  }
+
+  @Patch('technician/preferences')
+  updatePreferences(@Req() req: TechnicianRequest, @Body() dto: TechnicianDispatchPreferencesDto) {
+    return this.orders.technicianUpdateDispatchPreferences(req.technician!, dto);
+  }
+
+  @Get('technician/reviews')
+  reviews(@Req() req: TechnicianRequest) {
+    return this.orders.technicianListReviews(req.technician!.id);
   }
 
   @Get('technician/jobs')
@@ -102,6 +151,16 @@ export class TechnicianPortalController {
   materials(@Req() req: TechnicianRequest) {
     void req.technician;
     return this.orders.technicianListMaterials();
+  }
+
+  @Get('technician/material-orders')
+  materialOrders(@Req() req: TechnicianRequest) {
+    return this.orders.technicianListMaterialOrders(req.technician!.id);
+  }
+
+  @Post('technician/material-orders')
+  createMaterialOrder(@Req() req: TechnicianRequest, @Body() dto: CreateMaterialPurchaseOrderDto) {
+    return this.orders.technicianCreateMaterialOrder(req.technician!, dto);
   }
 
   @Post('technician/jobs/:orderId/extra-quotes')

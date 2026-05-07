@@ -25,6 +25,12 @@ Supabase(또는 Postgres) 적용 순서 — 위에서 아래로 실행하세요.
 9) customer_technician_ops_patch.sql — 고객 주소/자산 CRUD 후속, 기사 리뷰,
    기사 계좌 검증 상태, 기사 서류 Storage 경로, 정산 지급 요청 컬럼.
 
+10) material_marketplace.sql — 판매자 상품 카탈로그 확장,
+   기사 자재 구매요청/구매항목 테이블, 관리자 자재 구매관리.
+
+11) acnow_partner_dispatch.sql — ACNow 파트너 기사앱용 선호 배차 조건,
+   파트너 공지 테이블.
+
 점검(읽기 전용):
   check_installation_status.sql — 함수/테이블/트리거 나열
   verify_installation.sql — PASS/FAIL 요약(함수·테이블·order_id·FK·시드 대표 SKU)

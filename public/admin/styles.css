@@ -37,13 +37,13 @@ pre { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:
 .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
 tr.row-selected { background: #e0efff; }
 th.col-check, td.col-check { width: 40px; text-align: center; }
-td.col-check, td.col-id { cursor: default; }
+td.col-check, td.col-actions { cursor: default; }
 td.col-check input { cursor: pointer; }
-button.id-link {
-  background: none; border: 0; padding: 0; color: #1d4ed8; font-weight: 600;
-  text-decoration: underline; cursor: pointer; font-size: inherit;
+button.row-action {
+  min-height: 32px; padding: 6px 9px; color: #1d4ed8; font-weight: 800;
+  background: #eff6ff; border-color: #bfdbfe; cursor: pointer; font-size: 13px;
 }
-button.id-link:hover { color: #1e40af; }
+button.row-action:hover { background: #dbeafe; }
 button.ghost { background: #f1f5f9; border-color: #cbd5e1; }
 button.danger { background: #dc2626; color: #fff; border-color: #dc2626; }
 .modal-root { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }

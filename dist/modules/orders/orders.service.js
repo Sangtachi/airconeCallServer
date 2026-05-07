@@ -29,6 +29,21 @@ function technicianIdForPhotosForeignKey(technicianId) {
 function isUuid(v) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v.trim());
 }
+function str(v) {
+    if (v == null)
+        return null;
+    const s = String(v).trim();
+    return s === '' ? null : s;
+}
+function materialOrderNo() {
+    const d = new Date();
+    const ymd = [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0'),
+    ].join('');
+    return `MP-${ymd}-${(0, node_crypto_1.randomUUID)().slice(0, 8).toUpperCase()}`;
+}
 function settlementRowFromDb(r) {
     return {
         id: String(r.id),
@@ -54,6 +69,7 @@ function maskAccount(account) {
 function materialRowFromDb(r) {
     return {
         id: String(r.id),
+        sellerId: str(r.seller_id),
         name: String(r.name),
         code: String(r.code),
         category: String(r.category ?? 'general'),
@@ -62,7 +78,175 @@ function materialRowFromDb(r) {
         technicianCostAllowance: r.technician_cost_allowance == null ? null : Number(r.technician_cost_allowance),
         oemAvailable: Boolean(r.oem_available),
         supplierName: r.supplier_name == null ? null : String(r.supplier_name),
+        description: str(r.description),
+        imageUrl: str(r.image_url),
+        stockQuantity: Number(r.stock_quantity ?? 0),
+        marketStatus: String(r.market_status ?? 'active'),
+        deliveryNote: str(r.delivery_note),
+        minOrderQuantity: Number(r.min_order_quantity ?? 1),
+        isActive: r.is_active !== false,
     };
+}
+function materialPurchaseItemFromDb(r) {
+    return {
+        id: String(r.id),
+        purchaseOrderId: String(r.purchase_order_id),
+        materialId: str(r.material_id),
+        sellerId: str(r.seller_id),
+        name: String(r.name ?? ''),
+        code: String(r.code ?? ''),
+        unit: String(r.unit ?? 'each'),
+        supplierName: str(r.supplier_name),
+        unitPrice: Number(r.unit_price ?? 0),
+        quantity: Number(r.quantity ?? 0),
+        amount: Number(r.amount ?? 0),
+        createdAt: String(r.created_at ?? new Date().toISOString()),
+    };
+}
+function materialPurchaseOrderFromDb(r) {
+    const rawItems = Array.isArray(r.items)
+        ? r.items
+        : Array.isArray(r.material_purchase_order_items)
+            ? r.material_purchase_order_items
+            : [];
+    return {
+        id: String(r.id),
+        orderNo: String(r.order_no ?? ''),
+        technicianId: String(r.technician_id ?? ''),
+        technicianName: str(r.technician_name),
+        technicianPhone: str(r.technician_phone),
+        sellerId: str(r.seller_id),
+        sellerName: str(r.seller_name),
+        status: String(r.status ?? 'requested'),
+        totalAmount: Number(r.total_amount ?? 0),
+        deliveryAddress: String(r.delivery_address ?? ''),
+        recipientName: str(r.recipient_name),
+        recipientPhone: str(r.recipient_phone),
+        requestMemo: str(r.request_memo),
+        sellerMemo: str(r.seller_memo),
+        adminMemo: str(r.admin_memo),
+        confirmedAt: str(r.confirmed_at),
+        preparingAt: str(r.preparing_at),
+        shippedAt: str(r.shipped_at),
+        deliveredAt: str(r.delivered_at),
+        cancelledAt: str(r.cancelled_at),
+        createdAt: String(r.created_at ?? new Date().toISOString()),
+        updatedAt: String(r.updated_at ?? new Date().toISOString()),
+        items: rawItems.map((item) => materialPurchaseItemFromDb(item)),
+    };
+}
+function serviceTypeLabel(v) {
+    return v === 'cleaning' ? '청소' : '설치';
+}
+function airconTypeLabel(v) {
+    return {
+        wall: '벽걸이',
+        stand: '스탠드',
+        two_in_one: '투인원',
+        system: '시스템',
+    }[v] ?? v;
+}
+function expectedTechnicianPayout(order) {
+    return Math.max(0, Math.round((Number(order.totalPrice) || 0) * 0.8));
+}
+function orderRegionLabel(order, revealDetail = false) {
+    const coarse = [order.sigungu, order.dong].map((x) => x?.trim()).filter(Boolean).join(' ');
+    if (coarse)
+        return coarse;
+    const summary = String(order.addressSummary ?? '').trim();
+    if (revealDetail)
+        return summary || '주소 확인 필요';
+    const parts = summary.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2)
+        return parts.slice(0, 2).join(' ');
+    return summary || '지역 확인 중';
+}
+function scheduleText(order) {
+    if (order.scheduleType === 'same_day') {
+        return order.desiredTimeSlot ? `오늘 ${order.desiredTimeSlot}` : '오늘 당일';
+    }
+    const date = order.desiredDate ?? '예약일 협의';
+    return order.desiredTimeSlot ? `${date} ${order.desiredTimeSlot}` : date;
+}
+function includedItemsForOrder(order) {
+    const items = [];
+    if (order.serviceType === 'install') {
+        items.push('기본 배관 5m');
+        if (order.airconType !== 'wall')
+            items.push('냉매 보충 1회');
+        if (order.airconType === 'two_in_one' || order.airconType === 'stand')
+            items.push('타공 1회');
+    }
+    else {
+        items.push('기본 세척');
+        items.push('필터 점검');
+        if (order.airconType === 'system')
+            items.push('시스템 실내기 점검');
+    }
+    return items;
+}
+function dispatchOfferFromOrder(order) {
+    return {
+        id: order.id,
+        orderNo: order.orderNo,
+        serviceType: order.serviceType,
+        serviceTypeLabel: serviceTypeLabel(order.serviceType),
+        airconType: order.airconType,
+        airconTypeLabel: airconTypeLabel(order.airconType),
+        scheduleType: order.scheduleType,
+        scheduleLabel: order.scheduleType === 'same_day' ? '당일' : '예약',
+        scheduleText: scheduleText(order),
+        regionLabel: orderRegionLabel(order, false),
+        customerPaymentAmount: Number(order.totalPrice) || 0,
+        expectedPayout: expectedTechnicianPayout(order),
+        includedItems: includedItemsForOrder(order),
+        extraPotential: '현장 확인 후 앱 승인',
+        acceptanceDeadlineSec: 45,
+        distanceLabel: '활동 지역 기준',
+        createdAt: order.createdAt,
+    };
+}
+function dateRange(range) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(today);
+    const end = new Date(today);
+    if (range === 'tomorrow') {
+        start.setDate(start.getDate() + 1);
+        end.setDate(end.getDate() + 2);
+    }
+    else if (range === 'week') {
+        end.setDate(end.getDate() + 7);
+    }
+    else if (range === 'next_week') {
+        start.setDate(start.getDate() + 7);
+        end.setDate(end.getDate() + 14);
+    }
+    else {
+        end.setDate(end.getDate() + 1);
+    }
+    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+}
+function cleanStringList(v) {
+    if (!Array.isArray(v))
+        return [];
+    return [...new Set(v.map((x) => String(x).trim()).filter(Boolean))];
+}
+function defaultPreferences(technician) {
+    return {
+        regions: technician.regions.length > 0 ? technician.regions : technician.baseRegion ? [technician.baseRegion] : [],
+        serviceTypes: [...new Set(technician.capabilities.map((c) => c.serviceType))],
+        airconTypes: [...new Set(technician.capabilities.map((c) => c.airconType))],
+        availabilityCodes: technician.availability,
+        minimumPayout: null,
+        maxDistanceKm: 20,
+        sameDayEnabled: technician.availability.includes('same_day'),
+        reservationEnabled: technician.availability.includes('reservation'),
+    };
+}
+function missingOptionalRelation(error) {
+    const msg = error instanceof Error ? error.message : String(error ?? '');
+    return /schema cache|could not find the table|relation .* does not exist/i.test(msg);
 }
 function photoRowFromDb(r) {
     return {
@@ -262,6 +446,317 @@ let OrdersService = OrdersService_1 = class OrdersService {
         await this.store.replace(row);
         await this.store.appendMockProductPayment(row);
         return row;
+    }
+    async technicianGetDispatchPreferences(technician) {
+        const fallback = defaultPreferences(technician);
+        try {
+            const { data, error } = await this.db()
+                .from('technician_dispatch_preferences')
+                .select('*')
+                .eq('technician_id', technician.id)
+                .maybeSingle();
+            if (error)
+                throw new common_1.BadRequestException(error.message);
+            if (!data)
+                return fallback;
+            const row = data;
+            return {
+                regions: cleanStringList(row.regions).length > 0 ? cleanStringList(row.regions) : fallback.regions,
+                serviceTypes: cleanStringList(row.service_types).length > 0 ? cleanStringList(row.service_types) : fallback.serviceTypes,
+                airconTypes: cleanStringList(row.aircon_types).length > 0 ? cleanStringList(row.aircon_types) : fallback.airconTypes,
+                availabilityCodes: cleanStringList(row.availability_codes).length > 0
+                    ? cleanStringList(row.availability_codes)
+                    : fallback.availabilityCodes,
+                minimumPayout: row.minimum_payout == null ? fallback.minimumPayout : Number(row.minimum_payout),
+                maxDistanceKm: row.max_distance_km == null ? fallback.maxDistanceKm : Number(row.max_distance_km),
+                sameDayEnabled: row.same_day_enabled == null ? fallback.sameDayEnabled : Boolean(row.same_day_enabled),
+                reservationEnabled: row.reservation_enabled == null ? fallback.reservationEnabled : Boolean(row.reservation_enabled),
+            };
+        }
+        catch (error) {
+            if (missingOptionalRelation(error))
+                return fallback;
+            throw error;
+        }
+    }
+    async technicianUpdateDispatchPreferences(technician, dto) {
+        const current = await this.technicianGetDispatchPreferences(technician);
+        const next = {
+            regions: dto.regions !== undefined ? cleanStringList(dto.regions) : current.regions,
+            serviceTypes: dto.serviceTypes !== undefined ? cleanStringList(dto.serviceTypes) : current.serviceTypes,
+            airconTypes: dto.airconTypes !== undefined ? cleanStringList(dto.airconTypes) : current.airconTypes,
+            availabilityCodes: dto.availabilityCodes !== undefined ? cleanStringList(dto.availabilityCodes) : current.availabilityCodes,
+            minimumPayout: dto.minimumPayout === undefined || dto.minimumPayout === null ? current.minimumPayout : Number(dto.minimumPayout),
+            maxDistanceKm: dto.maxDistanceKm === undefined || dto.maxDistanceKm === null ? current.maxDistanceKm : Number(dto.maxDistanceKm),
+            sameDayEnabled: dto.sameDayEnabled === undefined ? current.sameDayEnabled : Boolean(dto.sameDayEnabled),
+            reservationEnabled: dto.reservationEnabled === undefined ? current.reservationEnabled : Boolean(dto.reservationEnabled),
+        };
+        try {
+            const { error } = await this.db().from('technician_dispatch_preferences').upsert({
+                technician_id: technician.id,
+                regions: next.regions,
+                service_types: next.serviceTypes,
+                aircon_types: next.airconTypes,
+                availability_codes: next.availabilityCodes,
+                minimum_payout: next.minimumPayout,
+                max_distance_km: next.maxDistanceKm,
+                same_day_enabled: next.sameDayEnabled,
+                reservation_enabled: next.reservationEnabled,
+            }, { onConflict: 'technician_id' });
+            if (error)
+                throw new common_1.BadRequestException(error.message);
+            return next;
+        }
+        catch (error) {
+            if (missingOptionalRelation(error)) {
+                throw new common_1.BadRequestException('sql/acnow_partner_dispatch.sql 적용 후 선호 배차 설정을 저장할 수 있습니다.');
+            }
+            throw error;
+        }
+    }
+    async isOrderEligibleForTechnician(order, technician, preferences) {
+        if (order.paymentStatus !== 'paid' || order.orderStatus !== 'matching')
+            return false;
+        if (order.assignedTechnicianId)
+            return false;
+        if (technician.workStatus === 'offline')
+            return false;
+        const pref = preferences ?? (await this.technicianGetDispatchPreferences(technician));
+        if (order.scheduleType === 'same_day' && !pref.sameDayEnabled)
+            return false;
+        if (order.scheduleType === 'reservation' && !pref.reservationEnabled)
+            return false;
+        if (pref.serviceTypes.length > 0 && !pref.serviceTypes.includes(order.serviceType))
+            return false;
+        if (pref.airconTypes.length > 0 && !pref.airconTypes.includes(order.airconType))
+            return false;
+        if (pref.minimumPayout != null && expectedTechnicianPayout(order) < pref.minimumPayout)
+            return false;
+        if (pref.regions.length > 0) {
+            const regionText = [order.sido, order.sigungu, order.dong, order.addressSummary]
+                .map((x) => x?.trim())
+                .filter(Boolean)
+                .join(' ');
+            if (!pref.regions.some((region) => regionText.includes(region)))
+                return false;
+        }
+        return true;
+    }
+    async technicianListDispatchOffers(technician, query) {
+        const prefs = await this.technicianGetDispatchPreferences(technician);
+        const rejected = await this.technicianRejectedOfferIds(technician.id);
+        const all = await this.store.listNewestFirst();
+        const range = dateRange(query.range);
+        const filtered = [];
+        for (const order of all) {
+            if (rejected.has(order.id))
+                continue;
+            if (query.type && order.scheduleType !== query.type)
+                continue;
+            if (order.scheduleType === 'reservation' && range) {
+                const date = order.desiredDate ?? order.createdAt.slice(0, 10);
+                if (date < range.start || date >= range.end)
+                    continue;
+            }
+            if (await this.isOrderEligibleForTechnician(order, technician, prefs))
+                filtered.push(order);
+        }
+        return filtered.map(dispatchOfferFromOrder);
+    }
+    async technicianRejectedOfferIds(technicianId) {
+        const { data, error } = await this.db()
+            .from('dispatch_notifications')
+            .select('order_id')
+            .eq('technician_id', technicianId)
+            .eq('status', 'rejected');
+        if (error) {
+            if (missingOptionalRelation(error))
+                return new Set();
+            throw new common_1.BadRequestException(error.message);
+        }
+        return new Set((data ?? []).map((r) => String(r.order_id ?? '')).filter(Boolean));
+    }
+    async technicianAcceptDispatchOffer(technician, orderId) {
+        const row = await this.getOrder(orderId);
+        if (!(await this.isOrderEligibleForTechnician(row, technician))) {
+            throw new common_1.BadRequestException('수락할 수 없는 배차입니다. 이미 배정됐거나 조건에 맞지 않습니다.');
+        }
+        const { data, error } = await this.db()
+            .from('orders')
+            .update({
+            assigned_technician_id: technician.id,
+            order_status: 'accepted',
+            updated_at: new Date().toISOString(),
+        })
+            .eq('id', orderId)
+            .eq('payment_status', 'paid')
+            .eq('order_status', 'matching')
+            .is('assigned_technician_id', null)
+            .select('id')
+            .maybeSingle();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        if (!data)
+            throw new common_1.BadRequestException('이미 다른 파트너가 수락했거나 배차가 마감됐습니다.');
+        await this.recordDispatchNotification(orderId, technician.id, 'accepted');
+        return this.getOrder(orderId);
+    }
+    async technicianRejectDispatchOffer(technician, orderId) {
+        const row = await this.getOrder(orderId);
+        if (row.paymentStatus !== 'paid' || row.orderStatus !== 'matching') {
+            throw new common_1.BadRequestException('거절할 수 없는 배차입니다.');
+        }
+        await this.recordDispatchNotification(orderId, technician.id, 'rejected');
+        return { orderId, status: 'rejected' };
+    }
+    async recordDispatchNotification(orderId, technicianId, status) {
+        const now = new Date().toISOString();
+        const row = {
+            order_id: orderId,
+            technician_id: technicianId,
+            notification_group: 'general',
+            sent_at: now,
+            opened_at: now,
+            status,
+        };
+        if (status === 'accepted')
+            row.accepted_at = now;
+        else
+            row.rejected_at = now;
+        const { error } = await this.db().from('dispatch_notifications').insert(row);
+        if (error && !missingOptionalRelation(error))
+            throw new common_1.BadRequestException(error.message);
+    }
+    async technicianListReviews(technicianId) {
+        try {
+            const { data, error } = await this.db()
+                .from('technician_reviews')
+                .select('id,order_id,rating,comment,created_at')
+                .eq('technician_id', technicianId)
+                .order('created_at', { ascending: false });
+            if (error)
+                throw new common_1.BadRequestException(error.message);
+            const rows = (data ?? []);
+            const ratings = rows.map((r) => Number(r.rating ?? 0)).filter((n) => Number.isFinite(n) && n > 0);
+            const averageRating = ratings.length > 0 ? Math.round((ratings.reduce((sum, n) => sum + n, 0) / ratings.length) * 10) / 10 : null;
+            return {
+                averageRating,
+                reviewCount: ratings.length,
+                recent: rows.slice(0, 10).map((r) => ({
+                    id: String(r.id),
+                    orderId: String(r.order_id),
+                    rating: Number(r.rating ?? 0),
+                    comment: str(r.comment),
+                    createdAt: String(r.created_at ?? new Date().toISOString()),
+                })),
+            };
+        }
+        catch (error) {
+            if (missingOptionalRelation(error))
+                return { averageRating: null, reviewCount: 0, recent: [] };
+            throw error;
+        }
+    }
+    async partnerNotices() {
+        try {
+            const { data, error } = await this.db()
+                .from('partner_notices')
+                .select('id,title,body,created_at')
+                .eq('is_active', true)
+                .order('created_at', { ascending: false })
+                .limit(3);
+            if (error)
+                throw new common_1.BadRequestException(error.message);
+            return (data ?? []).map((r) => ({
+                id: String(r.id),
+                title: String(r.title ?? ''),
+                body: String(r.body ?? ''),
+                createdAt: String(r.created_at ?? new Date().toISOString()),
+            }));
+        }
+        catch (error) {
+            if (!missingOptionalRelation(error))
+                throw error;
+            return [
+                {
+                    id: 'default-weekly-priority',
+                    title: '이번 주 우수 파트너 우선 배차 기준 안내',
+                    body: '수락률, 작업 완료율, 리뷰 점수를 함께 반영합니다.',
+                    createdAt: new Date().toISOString(),
+                },
+            ];
+        }
+    }
+    async technicianPartnerHome(technician) {
+        const [jobs, sameDayOffers, settlements, reviews, notices] = await Promise.all([
+            this.technicianListJobs(technician.id),
+            this.technicianListDispatchOffers(technician, { type: 'same_day', range: 'today' }),
+            this.technicianListSettlements(technician.id),
+            this.technicianListReviews(technician.id),
+            this.partnerNotices(),
+        ]);
+        const today = new Date().toISOString().slice(0, 10);
+        const weekEnd = new Date();
+        weekEnd.setDate(weekEnd.getDate() + 7);
+        const weekEndText = weekEnd.toISOString().slice(0, 10);
+        const todayReservations = jobs.filter((job) => job.scheduleType === 'reservation' && (job.desiredDate ?? today) === today).length;
+        const weeklyJobs = jobs.filter((job) => {
+            const date = job.desiredDate ?? job.createdAt.slice(0, 10);
+            return date >= today && date <= weekEndText && job.orderStatus !== 'completed';
+        });
+        const weeklyExpectedPayout = weeklyJobs.reduce((sum, job) => sum + expectedTechnicianPayout(job), 0);
+        const pendingPayout = settlements
+            .filter((s) => ['pending', 'held', 'confirmed'].includes(s.status))
+            .reduce((sum, s) => sum + Number(s.technicianPayout ?? 0), 0);
+        const completedCount = jobs.filter((job) => job.orderStatus === 'completed').length;
+        const grade = (reviews.averageRating ?? 0) >= 4.8 && completedCount >= 20
+            ? 'VIP 파트너'
+            : completedCount >= 10
+                ? '우수 파트너'
+                : '파트너';
+        const materialAlerts = this.materialAlertsForJobs(weeklyJobs);
+        return {
+            technician: {
+                id: technician.id,
+                name: technician.name,
+                workStatus: technician.workStatus,
+                baseRegion: technician.baseRegion,
+                grade,
+                benefitText: grade === 'VIP 파트너' ? '우선 배차와 수수료 혜택 대상' : '완료율과 리뷰가 쌓이면 더 좋은 콜을 받을 수 있습니다.',
+            },
+            summary: {
+                todayReservations,
+                sameDayOffers: sameDayOffers.length,
+                weeklyExpectedPayout,
+                pendingPayout,
+            },
+            quickOffers: sameDayOffers.slice(0, 3),
+            todayJobs: jobs.slice(0, 5).map((job) => ({
+                id: job.id,
+                orderNo: job.orderNo,
+                productName: job.productName,
+                scheduleText: scheduleText(job),
+                regionLabel: orderRegionLabel(job, true),
+                orderStatus: job.orderStatus,
+                expectedPayout: expectedTechnicianPayout(job),
+            })),
+            materialAlerts,
+            notices,
+            reviewSummary: reviews,
+        };
+    }
+    materialAlertsForJobs(jobs) {
+        const installJobs = jobs.filter((job) => job.serviceType === 'install');
+        const twoInOne = installJobs.filter((job) => job.airconType === 'two_in_one').length;
+        const cleaning = jobs.filter((job) => job.serviceType === 'cleaning').length;
+        const alerts = [];
+        if (installJobs.length > 0)
+            alerts.push(`배관 5m 이상 작업 ${installJobs.length}건 예정`);
+        if (twoInOne > 0)
+            alerts.push(`냉매 보충 포함 작업 ${twoInOne}건 예정`);
+        if (cleaning > 0)
+            alerts.push(`청소 자재 확인 작업 ${cleaning}건 예정`);
+        return alerts.length > 0 ? alerts : ['이번 주 확정 작업 기준 자재 부족 알림 없음'];
     }
     async technicianListJobs(technicianId) {
         const all = await this.store.listNewestFirst();
@@ -476,10 +971,142 @@ let OrdersService = OrdersService_1 = class OrdersService {
             .from('materials')
             .select('*')
             .eq('is_active', true)
+            .eq('market_status', 'active')
+            .gt('stock_quantity', 0)
             .order('code');
         if (error)
             throw new common_1.BadRequestException(error.message);
         return (data ?? []).map((r) => materialRowFromDb(r));
+    }
+    async technicianListMaterialOrders(technicianId) {
+        const { data, error } = await this.db()
+            .from('material_purchase_orders')
+            .select('*,items:material_purchase_order_items(*)')
+            .eq('technician_id', technicianId)
+            .order('created_at', { ascending: false });
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        return (data ?? []).map(materialPurchaseOrderFromDb);
+    }
+    async technicianCreateMaterialOrder(technician, dto) {
+        const requested = new Map();
+        for (const item of dto.items ?? []) {
+            const materialId = String(item?.materialId ?? '').trim();
+            const quantity = Math.floor(Number(item?.quantity ?? 0));
+            if (!isUuid(materialId))
+                throw new common_1.BadRequestException('materialId must be a UUID');
+            if (!Number.isFinite(quantity) || quantity <= 0)
+                throw new common_1.BadRequestException('quantity must be greater than 0');
+            requested.set(materialId, (requested.get(materialId) ?? 0) + quantity);
+        }
+        if (requested.size === 0)
+            throw new common_1.BadRequestException('items required');
+        const materialIds = [...requested.keys()];
+        const { data: materialRows, error: materialError } = await this.db()
+            .from('materials')
+            .select('*')
+            .in('id', materialIds);
+        if (materialError)
+            throw new common_1.BadRequestException(materialError.message);
+        if ((materialRows ?? []).length !== materialIds.length)
+            throw new common_1.NotFoundException('material not found');
+        const materials = (materialRows ?? []).map((m) => materialRowFromDb(m));
+        const sellerIds = new Set(materials.map((m) => m.sellerId ?? '').filter(Boolean));
+        if (sellerIds.size > 1)
+            throw new common_1.BadRequestException('한 번에 한 판매자 상품만 구매요청할 수 있습니다.');
+        let totalAmount = 0;
+        const orderItems = materials.map((m) => {
+            const quantity = requested.get(m.id) ?? 0;
+            if (!m.isActive || m.marketStatus !== 'active')
+                throw new common_1.BadRequestException(`${m.name} 상품은 판매중이 아닙니다.`);
+            if (m.customerPrice == null)
+                throw new common_1.BadRequestException(`${m.name} 상품은 가격 확정 후 구매요청할 수 있습니다.`);
+            if (quantity < m.minOrderQuantity)
+                throw new common_1.BadRequestException(`${m.name} 최소 주문 수량은 ${m.minOrderQuantity}개입니다.`);
+            if (m.stockQuantity < quantity)
+                throw new common_1.BadRequestException(`${m.name} 재고가 부족합니다.`);
+            const amount = m.customerPrice * quantity;
+            totalAmount += amount;
+            return {
+                material: m,
+                quantity,
+                unitPrice: m.customerPrice,
+                amount,
+            };
+        });
+        const sellerId = orderItems[0]?.material.sellerId ?? null;
+        const sellerName = orderItems[0]?.material.supplierName ?? null;
+        const { data: created, error: createError } = await this.db()
+            .from('material_purchase_orders')
+            .insert({
+            order_no: materialOrderNo(),
+            technician_id: technician.id,
+            technician_name: technician.name,
+            technician_phone: technician.phone,
+            seller_id: sellerId,
+            seller_name: sellerName,
+            status: 'requested',
+            total_amount: totalAmount,
+            delivery_address: dto.deliveryAddress?.trim() || '',
+            recipient_name: dto.recipientName?.trim() || technician.name,
+            recipient_phone: dto.recipientPhone?.trim() || technician.phone,
+            request_memo: dto.requestMemo?.trim() || null,
+        })
+            .select('*')
+            .single();
+        if (createError)
+            throw new common_1.BadRequestException(createError.message);
+        const orderId = String(created.id);
+        const { error: itemError } = await this.db().from('material_purchase_order_items').insert(orderItems.map(({ material, quantity, unitPrice, amount }) => ({
+            purchase_order_id: orderId,
+            material_id: material.id,
+            seller_id: material.sellerId,
+            name: material.name,
+            code: material.code,
+            unit: material.unit,
+            supplier_name: material.supplierName,
+            unit_price: unitPrice,
+            quantity,
+            amount,
+        })));
+        if (itemError)
+            throw new common_1.BadRequestException(itemError.message);
+        for (const { material, quantity } of orderItems) {
+            const nextStock = Math.max(0, material.stockQuantity - quantity);
+            const { error } = await this.db()
+                .from('materials')
+                .update({
+                stock_quantity: nextStock,
+                market_status: nextStock <= 0 ? 'sold_out' : material.marketStatus,
+            })
+                .eq('id', material.id);
+            if (error)
+                throw new common_1.BadRequestException(error.message);
+        }
+        await this.audit('technician_create_material_order', 'material_purchase_orders', orderId, {
+            technicianId: technician.id,
+            sellerId,
+            totalAmount,
+        });
+        const { data, error } = await this.db()
+            .from('material_purchase_orders')
+            .select('*,items:material_purchase_order_items(*)')
+            .eq('id', orderId)
+            .single();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        return materialPurchaseOrderFromDb(data);
+    }
+    async audit(action, targetTable, targetId, payload) {
+        const { error } = await this.db().from('admin_logs').insert({
+            action,
+            target_table: targetTable,
+            target_id: targetId,
+            payload: payload ?? {},
+        });
+        if (error && !/schema cache|could not find the table|relation .* does not exist/i.test(error.message)) {
+            throw new common_1.BadRequestException(error.message);
+        }
     }
     async technicianPresignOrderPhoto(technicianId, orderId, dto) {
         const sb = this.db();

@@ -31,7 +31,13 @@
   }
 
   function displayName(session) {
-    return session?.name || session?.companyName || '사용자';
+    const role = session?.role || '';
+    const base = session?.name || session?.companyName || '사용자';
+    if (/대표님$|기사님$|회원님$/.test(base)) return base;
+    if (role === 'seller' || role === 'admin' || role === 'super_admin') return `${base} 대표님`;
+    if (role === 'technician') return `${base} 기사님`;
+    if (role === 'customer') return `${base} 회원님`;
+    return base;
   }
 
   function dashboardHref(session = read()) {

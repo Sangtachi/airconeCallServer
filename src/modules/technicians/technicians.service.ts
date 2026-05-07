@@ -406,6 +406,27 @@ export class TechniciansService implements OnModuleInit {
     return t;
   }
 
+  async updateWorkStatus(
+    id: string,
+    workStatus: TechnicianEntity['workStatus'],
+  ): Promise<Pick<TechnicianEntity, 'id' | 'workStatus' | 'status' | 'name'>> {
+    const row = this.getApprovedById(id);
+    if (!row) throw new NotFoundException('approved technician not found');
+    const { error } = await this.db()
+      .from('technicians')
+      .update({ work_status: workStatus })
+      .eq('id', id);
+    if (error) throw new BadRequestException(error.message);
+    await this.reload();
+    const next = this.getRequired(id);
+    return {
+      id: next.id,
+      name: next.name,
+      status: next.status,
+      workStatus: next.workStatus,
+    };
+  }
+
   findById(id: string): TechnicianEntity | undefined {
     this.ensureConfigured();
     return this.byId.get(id);
