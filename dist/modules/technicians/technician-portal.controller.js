@@ -17,6 +17,8 @@ const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const swagger_1 = require("@nestjs/swagger");
 const admin_dto_1 = require("../admin/admin.dto");
+const notification_dto_1 = require("../notifications/notification.dto");
+const notification_service_1 = require("../notifications/notification.service");
 const extra_quotes_dto_1 = require("../orders/dto/extra-quotes.dto");
 const technician_photo_upload_dto_1 = require("../orders/dto/technician-photo-upload.dto");
 const extra_quotes_service_1 = require("../orders/extra-quotes.service");
@@ -26,10 +28,11 @@ const technician_dto_1 = require("./technician.dto");
 const technicians_service_1 = require("./technicians.service");
 const ALLOWED_IMAGE_MIME = /^image\/(jpeg|jpg|png|webp|heic|heif)$/i;
 let TechnicianPortalController = class TechnicianPortalController {
-    constructor(orders, extraQuotes, technicians) {
+    constructor(orders, extraQuotes, technicians, notifications) {
         this.orders = orders;
         this.extraQuotes = extraQuotes;
         this.technicians = technicians;
+        this.notifications = notifications;
     }
     me(req) {
         const t = req.technician;
@@ -52,6 +55,9 @@ let TechnicianPortalController = class TechnicianPortalController {
     }
     updateWorkStatus(req, dto) {
         return this.technicians.updateWorkStatus(req.technician.id, dto.workStatus);
+    }
+    registerNotificationDevice(req, dto, userAgent) {
+        return this.notifications.registerDevice('technician', req.technician.id, dto, userAgent);
     }
     partnerHome(req) {
         return this.orders.technicianPartnerHome(req.technician);
@@ -150,6 +156,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, technician_dto_1.TechnicianWorkStatusDto]),
     __metadata("design:returntype", void 0)
 ], TechnicianPortalController.prototype, "updateWorkStatus", null);
+__decorate([
+    (0, common_1.Post)('technician/notifications/devices'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('user-agent')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, notification_dto_1.RegisterNotificationDeviceDto, String]),
+    __metadata("design:returntype", void 0)
+], TechnicianPortalController.prototype, "registerNotificationDevice", null);
 __decorate([
     (0, common_1.Get)('technician/partner/home'),
     __param(0, (0, common_1.Req)()),
@@ -360,6 +375,7 @@ exports.TechnicianPortalController = TechnicianPortalController = __decorate([
     (0, common_1.Controller)(),
     __metadata("design:paramtypes", [orders_service_1.OrdersService,
         extra_quotes_service_1.ExtraQuotesService,
-        technicians_service_1.TechniciansService])
+        technicians_service_1.TechniciansService,
+        notification_service_1.NotificationService])
 ], TechnicianPortalController);
 //# sourceMappingURL=technician-portal.controller.js.map

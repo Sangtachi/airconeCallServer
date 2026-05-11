@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiQuery, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { AdminRoleGuard, AdminRoles } from '../../common/admin-role.guard';
+import { NotificationService } from '../notifications/notification.service';
 import { TechniciansService } from '../technicians/technicians.service';
 import { AdminAccessGuard, AuthenticatedRoleRequest } from './admin-access.guard';
 import { AdminService } from './admin.service';
@@ -52,6 +53,7 @@ export class AdminController {
   constructor(
     private readonly service: AdminService,
     private readonly technicians: TechniciansService,
+    private readonly notifications: NotificationService,
   ) {}
 
   @Get('dashboard')
@@ -328,4 +330,10 @@ export class AdminController {
   @Get('logs')
   @AdminRoles('super_admin')
   getLogs() { return this.service.getAdminLogs(); }
+
+  @Get('notification-events')
+  @AdminRoles('dispatch_admin', 'ops_admin', 'finance_admin')
+  getNotificationEvents() {
+    return this.notifications.listEvents();
+  }
 }

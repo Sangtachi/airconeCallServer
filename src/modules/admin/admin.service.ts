@@ -13,6 +13,7 @@ import { SUPABASE_ADMIN } from '../../database/database.tokens';
 import { ServiceCatalogService } from '../service-catalog/service-catalog.service';
 import { TechniciansService } from '../technicians/technicians.service';
 import { OrdersService } from '../orders/orders.service';
+import { ExtraQuotesService, type ExtraQuoteRow } from '../orders/extra-quotes.service';
 import type { CustomerOrderRow } from '../orders/orders.types';
 import { looksLikeUuid, paymentFromRow, settlementFromOrderRow } from './admin-payments-settlements.db';
 import { AdminLog, Booking, BookingStatus, Coupon, Member, Payment, Settlement } from './admin.types';
@@ -319,6 +320,7 @@ export class AdminService {
   constructor(
     private readonly techniciansRegistry: TechniciansService,
     private readonly orders: OrdersService,
+    private readonly extraQuotes: ExtraQuotesService,
     private readonly catalog: ServiceCatalogService,
     @Inject(SUPABASE_ADMIN) private readonly sb: SupabaseClient | null,
     private readonly settlementAudit: SettlementAuditService,
@@ -529,49 +531,51 @@ export class AdminService {
   async unifiedSession(dto: { phone: string; password: string }) {
     const phone = normalizePhone(dto.phone);
     if (phone.length < 10) throw new BadRequestException('invalid phone');
-    const sb = this.db();
 
-    const { data: memberRow, error: memberError } = await sb
-      .from('members')
-      .select('*,password_hash')
-      .eq('phone', phone)
-      .maybeSingle();
-    if (memberError) throw new BadRequestException(memberError.message);
-    if (memberRow) {
-      if (!verifyPassword(dto.password, (memberRow as { password_hash?: string | null }).password_hash)) {
-        throw new UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+    if (this.sb) {
+      const sb = this.sb;
+      const { data: memberRow, error: memberError } = await sb
+        .from('members')
+        .select('*,password_hash')
+        .eq('phone', phone)
+        .maybeSingle();
+      if (memberError) throw new BadRequestException(memberError.message);
+      if (memberRow) {
+        if (!verifyPassword(dto.password, (memberRow as { password_hash?: string | null }).password_hash)) {
+          throw new UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+        }
+        const member = memberFromRow(memberRow as Record<string, unknown>);
+        if (member.status !== 'active') throw new BadRequestException(`member status is ${member.status}`);
+        return {
+          id: member.id,
+          memberId: member.id,
+          role: member.role,
+          name: member.name,
+          phone: member.phone,
+          status: member.status,
+        };
       }
-      const member = memberFromRow(memberRow as Record<string, unknown>);
-      if (member.status !== 'active') throw new BadRequestException(`member status is ${member.status}`);
-      return {
-        id: member.id,
-        memberId: member.id,
-        role: member.role,
-        name: member.name,
-        phone: member.phone,
-        status: member.status,
-      };
-    }
 
-    const { data: sellerRow, error: sellerError } = await sb
-      .from('seller_applications')
-      .select('*,password_hash')
-      .eq('phone', phone)
-      .maybeSingle();
-    if (sellerError) throw new BadRequestException(sellerError.message);
-    if (sellerRow) {
-      if (!verifyPassword(dto.password, (sellerRow as { password_hash?: string | null }).password_hash)) {
-        throw new UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+      const { data: sellerRow, error: sellerError } = await sb
+        .from('seller_applications')
+        .select('*,password_hash')
+        .eq('phone', phone)
+        .maybeSingle();
+      if (sellerError) throw new BadRequestException(sellerError.message);
+      if (sellerRow) {
+        if (!verifyPassword(dto.password, (sellerRow as { password_hash?: string | null }).password_hash)) {
+          throw new UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+        }
+        return {
+          id: String((sellerRow as { id: string }).id),
+          sellerId: String((sellerRow as { id: string }).id),
+          role: 'seller',
+          name: String((sellerRow as { owner_name?: string }).owner_name ?? ''),
+          companyName: String((sellerRow as { company_name?: string }).company_name ?? ''),
+          phone: String((sellerRow as { phone?: string }).phone ?? phone),
+          status: String((sellerRow as { status?: string }).status ?? 'pending'),
+        };
       }
-      return {
-        id: String((sellerRow as { id: string }).id),
-        sellerId: String((sellerRow as { id: string }).id),
-        role: 'seller',
-        name: String((sellerRow as { owner_name?: string }).owner_name ?? ''),
-        companyName: String((sellerRow as { company_name?: string }).company_name ?? ''),
-        phone: String((sellerRow as { phone?: string }).phone ?? phone),
-        status: String((sellerRow as { status?: string }).status ?? 'pending'),
-      };
     }
 
     const technician = this.techniciansRegistry.findApprovedByCredentials(phone, dto.password);
@@ -670,6 +674,25 @@ export class AdminService {
 
   private async ensureMemberExists(memberId: string): Promise<Member> {
     return this.getMember(requireUuid(memberId, 'member id'));
+  }
+
+  private async assertMemberOrder(
+    member: Member,
+    orderId: string,
+    columns = 'id,user_id,customer_phone',
+  ): Promise<Record<string, unknown>> {
+    const { data, error } = await this.db()
+      .from('orders')
+      .select(columns)
+      .eq('id', requireUuid(orderId, 'order id'))
+      .maybeSingle();
+    if (error) throw new BadRequestException(error.message);
+    if (!data) throw new NotFoundException('order not found');
+    const row = data as unknown as Record<string, unknown>;
+    if (String(row.user_id ?? '') !== member.id && String(row.customer_phone ?? '') !== member.phone) {
+      throw new UnauthorizedException('회원 주문이 아닙니다.');
+    }
+    return row;
   }
 
   private async assertAddressOwner(memberId: string, addressId: string) {
@@ -843,17 +866,7 @@ export class AdminService {
 
   async reviewMemberOrder(memberId: string, orderId: string, dto: CreateOrderReviewDto) {
     const member = await this.ensureMemberExists(memberId);
-    const { data: order, error: e0 } = await this.db()
-      .from('orders')
-      .select('id,user_id,customer_phone,assigned_technician_id,order_status')
-      .eq('id', requireUuid(orderId, 'order id'))
-      .maybeSingle();
-    if (e0) throw new BadRequestException(e0.message);
-    if (!order) throw new NotFoundException('order not found');
-    const o = order as Record<string, unknown>;
-    if (String(o.user_id ?? '') !== member.id && String(o.customer_phone ?? '') !== member.phone) {
-      throw new UnauthorizedException('회원 주문이 아닙니다.');
-    }
+    const o = await this.assertMemberOrder(member, orderId, 'id,user_id,customer_phone,assigned_technician_id,order_status');
     if (!['completed', 'settlement_pending', 'settled'].includes(String(o.order_status ?? ''))) {
       throw new BadRequestException('완료된 주문만 평가할 수 있습니다.');
     }
@@ -887,6 +900,28 @@ export class AdminService {
       rating: dto.rating,
     });
     return reviewFromRow(data as Record<string, unknown>);
+  }
+
+  async memberListOrderExtraQuotes(memberId: string, orderId: string): Promise<ExtraQuoteRow[]> {
+    const member = await this.ensureMemberExists(memberId);
+    await this.assertMemberOrder(member, orderId, 'id,user_id,customer_phone');
+    return this.extraQuotes.adminListQuotes(orderId);
+  }
+
+  async memberApproveAndMockPayExtraQuote(memberId: string, orderId: string, quoteId: string) {
+    const member = await this.ensureMemberExists(memberId);
+    await this.assertMemberOrder(member, orderId, 'id,user_id,customer_phone');
+    const quotes = await this.extraQuotes.adminListQuotes(orderId);
+    const quote = quotes.find((q) => q.id === quoteId);
+    if (!quote) throw new NotFoundException('quote not found');
+    if (quote.status === 'requested') await this.extraQuotes.adminCustomerApprove(quoteId);
+    const paid = await this.extraQuotes.adminMockPay(quoteId);
+    await this.audit('member_approve_extra_quote', 'order_extra_quotes', quoteId, {
+      memberId: member.id,
+      orderId,
+      paymentId: paid.paymentId,
+    });
+    return paid;
   }
 
   async registerSeller(dto: RegisterSellerDto) {

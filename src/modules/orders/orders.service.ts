@@ -10,7 +10,9 @@ import type { Express } from 'express';
 import { randomUUID } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_ADMIN } from '../../database/database.tokens';
+import { NotificationService } from '../notifications/notification.service';
 import { ServiceCatalogService } from '../service-catalog/service-catalog.service';
+import { fetchCapabilitiesBulk, technicianFromRow } from '../technicians/technicians-db.mapper';
 import type { TechnicianOrderPhotoDto } from '../technicians/technician.dto';
 import type {
   TechnicianPhotoConfirmDto,
@@ -399,6 +401,7 @@ export class OrdersService {
     private readonly catalog: ServiceCatalogService,
     @Inject(ORDERS_REPO) private readonly store: OrdersRepositoryPort,
     @Inject(SUPABASE_ADMIN) private readonly sb: SupabaseClient | null,
+    private readonly notifications: NotificationService,
   ) {}
 
   private db(): SupabaseClient {
@@ -441,7 +444,12 @@ export class OrdersService {
       userId: lead.userId ?? undefined,
       customerMemo: memoParts.join(' | '),
     });
-    return this.createDraft(dto);
+    const order = await this.createDraft(dto);
+    order.orderStatus = 'matching';
+    order.updatedAt = new Date().toISOString();
+    await this.store.replace(order);
+    await this.notifyDispatchableOrder(order);
+    return order;
   }
 
   async createDraft(dto: CreateOrderDraftDto): Promise<CustomerOrderRow> {
@@ -522,6 +530,7 @@ export class OrdersService {
     }
     row.updatedAt = now;
     await this.store.replace(row);
+    if (row.orderStatus === 'matching') await this.notifyDispatchableOrder(row);
     return row;
   }
 
@@ -586,6 +595,7 @@ export class OrdersService {
     row.updatedAt = new Date().toISOString();
     await this.store.replace(row);
     await this.store.appendMockProductPayment(row);
+    await this.notifyDispatchableOrder(row);
     return row;
   }
 
@@ -669,7 +679,8 @@ export class OrdersService {
     technician: TechnicianEntity,
     preferences?: TechnicianDispatchPreferences,
   ): Promise<boolean> {
-    if (order.paymentStatus !== 'paid' || order.orderStatus !== 'matching') return false;
+    if (order.orderStatus !== 'matching') return false;
+    if (order.paymentStatus !== 'paid' && order.scheduleType !== 'same_day') return false;
     if (order.assignedTechnicianId) return false;
     if (technician.workStatus === 'offline') return false;
     const pref = preferences ?? (await this.technicianGetDispatchPreferences(technician));
@@ -735,7 +746,6 @@ export class OrdersService {
         updated_at: new Date().toISOString(),
       })
       .eq('id', orderId)
-      .eq('payment_status', 'paid')
       .eq('order_status', 'matching')
       .is('assigned_technician_id', null)
       .select('id')
@@ -751,7 +761,7 @@ export class OrdersService {
     orderId: string,
   ): Promise<{ orderId: string; status: 'rejected' }> {
     const row = await this.getOrder(orderId);
-    if (row.paymentStatus !== 'paid' || row.orderStatus !== 'matching') {
+    if (row.orderStatus !== 'matching' || (row.paymentStatus !== 'paid' && row.scheduleType !== 'same_day')) {
       throw new BadRequestException('거절할 수 없는 배차입니다.');
     }
     await this.recordDispatchNotification(orderId, technician.id, 'rejected');
@@ -761,7 +771,7 @@ export class OrdersService {
   private async recordDispatchNotification(
     orderId: string,
     technicianId: string,
-    status: 'accepted' | 'rejected',
+    status: 'sent' | 'accepted' | 'rejected',
   ): Promise<void> {
     const now = new Date().toISOString();
     const row: Record<string, unknown> = {
@@ -769,13 +779,97 @@ export class OrdersService {
       technician_id: technicianId,
       notification_group: 'general',
       sent_at: now,
-      opened_at: now,
       status,
     };
-    if (status === 'accepted') row.accepted_at = now;
-    else row.rejected_at = now;
+    if (status === 'accepted') {
+      row.opened_at = now;
+      row.accepted_at = now;
+    } else if (status === 'rejected') {
+      row.opened_at = now;
+      row.rejected_at = now;
+    }
     const { error } = await this.db().from('dispatch_notifications').insert(row);
     if (error && !missingOptionalRelation(error)) throw new BadRequestException(error.message);
+  }
+
+  private async notifyDispatchableOrder(order: CustomerOrderRow): Promise<void> {
+    if (order.orderStatus !== 'matching') return;
+    const technicians = await this.approvedTechniciansForDispatch();
+    const eligible: TechnicianEntity[] = [];
+    for (const tech of technicians) {
+      if (await this.isOrderEligibleForTechnician(order, tech)) eligible.push(tech);
+    }
+    await Promise.all(eligible.map((tech) => this.recordDispatchNotification(order.id, tech.id, 'sent')));
+    await this.notifications.notifyOwners({
+      ownerType: 'technician',
+      ownerIds: eligible.map((tech) => tech.id),
+      eventType: 'dispatch_offer',
+      targetTable: 'orders',
+      targetId: order.id,
+      title: '새 배차 콜이 도착했습니다',
+      body: `${airconTypeLabel(order.airconType)} ${serviceTypeLabel(order.serviceType)} · ${orderRegionLabel(order, false)}`,
+      payload: {
+        orderId: order.id,
+        orderNo: order.orderNo,
+        scheduleType: order.scheduleType,
+        serviceType: order.serviceType,
+        airconType: order.airconType,
+      },
+    });
+  }
+
+  private async approvedTechniciansForDispatch(): Promise<TechnicianEntity[]> {
+    const sb = this.db();
+    const { data, error } = await sb
+      .from('technicians')
+      .select('*')
+      .eq('status', 'approved')
+      .neq('work_status', 'offline');
+    if (error) throw new BadRequestException(error.message);
+    const rows = (data ?? []) as Record<string, unknown>[];
+    const ids = rows.map((row) => String(row.id));
+    const capabilities = await fetchCapabilitiesBulk(sb, ids).catch(() => new Map<string, TechnicianEntity['capabilities']>());
+    const regions = await this.fetchTechnicianStringChildMap('technician_regions', 'region', ids);
+    const availability = await this.fetchTechnicianStringChildMap('technician_availability', 'availability_code', ids);
+    return rows.map((row) => {
+      const id = String(row.id);
+      const fallbackAvailability: TechnicianEntity['availability'] = [];
+      if (row.available_same_day !== false) fallbackAvailability.push('same_day');
+      if (row.available_reservation !== false) fallbackAvailability.push('reservation');
+      if (row.available_weekend === true) fallbackAvailability.push('weekend');
+      if (row.available_night === true) fallbackAvailability.push('night');
+      const avList = availability.get(id) ?? [];
+      const av = (avList.length > 0 ? avList : fallbackAvailability) as TechnicianEntity['availability'];
+      return technicianFromRow(row, capabilities.get(id) ?? [], regions.get(id) ?? [], av, []);
+    });
+  }
+
+  private async fetchTechnicianStringChildMap(
+    tableName: string,
+    columnName: string,
+    technicianIds: string[],
+  ): Promise<Map<string, string[]>> {
+    const out = new Map<string, string[]>();
+    technicianIds.forEach((id) => out.set(id, []));
+    if (technicianIds.length === 0) return out;
+    const { data, error } = await this.db()
+      .from(tableName)
+      .select(`technician_id,${columnName}`)
+      .in('technician_id', technicianIds);
+    if (error) {
+      if (missingOptionalRelation(error)) return out;
+      throw new BadRequestException(error.message);
+    }
+    for (const rec of data ?? []) {
+      const row = rec as unknown as Record<string, unknown>;
+      const id = String(row.technician_id ?? '');
+      const value = str(row[columnName]);
+      if (!id || !value) continue;
+      const list = out.get(id) ?? [];
+      list.push(value);
+      out.set(id, list);
+    }
+    return out;
   }
 
   async technicianListReviews(technicianId: string): Promise<TechnicianReviewSummary> {
@@ -913,7 +1007,7 @@ export class OrdersService {
     return all.filter(
       (o) =>
         o.assignedTechnicianId === technicianId &&
-        o.paymentStatus === 'paid' &&
+        this.canTechnicianWorkAssignedOrder(o) &&
         [
           'assigned',
           'accepted',
@@ -932,9 +1026,13 @@ export class OrdersService {
     if (row.assignedTechnicianId !== technicianId) {
       throw new ForbiddenException('not assigned to this order');
     }
-    if (row.paymentStatus !== 'paid') {
+    if (!this.canTechnicianWorkAssignedOrder(row)) {
       throw new ForbiddenException('payment not completed');
     }
+  }
+
+  private canTechnicianWorkAssignedOrder(row: CustomerOrderRow): boolean {
+    return row.paymentStatus === 'paid' || row.scheduleType === 'same_day';
   }
 
   async technicianGetJob(technicianId: string, orderId: string): Promise<CustomerOrderRow> {
@@ -984,7 +1082,50 @@ export class OrdersService {
     row.updatedAt = new Date().toISOString();
     await this.store.replace(row);
     await this.upsertSettlementForCompletedJob(row, technicianId);
+    await this.notifyOrderCustomer(row, 'job_completed', '작업 완료 안내', `${row.productName} 작업이 완료되었습니다.`);
     return row;
+  }
+
+  async markExtraPaymentPending(orderId: string): Promise<CustomerOrderRow> {
+    const row = await this.getOrder(orderId);
+    row.orderStatus = 'extra_payment_pending';
+    row.updatedAt = new Date().toISOString();
+    await this.store.replace(row);
+    return row;
+  }
+
+  async applyPaidExtraQuote(orderId: string, amount: number): Promise<CustomerOrderRow> {
+    const row = await this.getOrder(orderId);
+    row.extraTotalPrice = Math.max(0, Number(row.extraTotalPrice ?? 0)) + Math.max(0, Math.round(Number(amount) || 0));
+    row.totalPrice = Math.max(0, Number(row.productTotalPrice ?? 0)) + row.extraTotalPrice - Math.max(0, Number(row.discountAmount ?? 0));
+    if (row.orderStatus === 'extra_payment_pending') row.orderStatus = 'working';
+    row.updatedAt = new Date().toISOString();
+    await this.store.replace(row);
+    return row;
+  }
+
+  async notifyOrderCustomer(
+    order: CustomerOrderRow,
+    eventType: string,
+    title: string,
+    body: string,
+    payload: Record<string, unknown> = {},
+  ): Promise<void> {
+    if (!order.userId) return;
+    await this.notifications.notifyOwners({
+      ownerType: 'member',
+      ownerIds: [order.userId],
+      eventType,
+      targetTable: 'orders',
+      targetId: order.id,
+      title,
+      body,
+      payload: {
+        orderId: order.id,
+        orderNo: order.orderNo,
+        ...payload,
+      },
+    });
   }
 
   private async assertRequiredWorkPhotos(orderId: string): Promise<void> {

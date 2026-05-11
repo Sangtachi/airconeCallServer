@@ -12,6 +12,7 @@ const common_2 = require("@nestjs/common");
 const database_module_1 = require("../../database/database.module");
 const database_tokens_1 = require("../../database/database.tokens");
 const service_catalog_module_1 = require("../service-catalog/service-catalog.module");
+const notification_module_1 = require("../notifications/notification.module");
 const customer_orders_admin_controller_1 = require("./customer-orders-admin.controller");
 const orders_repository_port_1 = require("./orders.repository.port");
 const extra_quotes_admin_controller_1 = require("./extra-quotes-admin.controller");
@@ -37,7 +38,7 @@ let OrdersModule = class OrdersModule {
 exports.OrdersModule = OrdersModule;
 exports.OrdersModule = OrdersModule = __decorate([
     (0, common_1.Module)({
-        imports: [service_catalog_module_1.ServiceCatalogModule, database_module_1.DatabaseModule],
+        imports: [service_catalog_module_1.ServiceCatalogModule, database_module_1.DatabaseModule, notification_module_1.NotificationModule],
         controllers: [
             orders_controller_1.OrdersController,
             payments_mock_controller_1.PaymentsMockController,

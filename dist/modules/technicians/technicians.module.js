@@ -10,6 +10,7 @@ exports.TechniciansModule = void 0;
 const common_1 = require("@nestjs/common");
 const database_module_1 = require("../../database/database.module");
 const orders_module_1 = require("../orders/orders.module");
+const notification_module_1 = require("../notifications/notification.module");
 const technician_approved_guard_1 = require("./technician-approved.guard");
 const technician_portal_controller_1 = require("./technician-portal.controller");
 const technician_public_controller_1 = require("./technician-public.controller");
@@ -19,7 +20,7 @@ let TechniciansModule = class TechniciansModule {
 exports.TechniciansModule = TechniciansModule;
 exports.TechniciansModule = TechniciansModule = __decorate([
     (0, common_1.Module)({
-        imports: [database_module_1.DatabaseModule, orders_module_1.OrdersModule],
+        imports: [database_module_1.DatabaseModule, orders_module_1.OrdersModule, notification_module_1.NotificationModule],
         controllers: [technician_public_controller_1.TechnicianPublicController, technician_portal_controller_1.TechnicianPortalController],
         providers: [technicians_service_1.TechniciansService, technician_approved_guard_1.TechnicianApprovedGuard],
         exports: [technicians_service_1.TechniciansService],

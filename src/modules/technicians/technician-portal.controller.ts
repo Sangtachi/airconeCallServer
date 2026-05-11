@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -16,6 +17,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiHeader, ApiTags } from '@nestjs/swagger';
 import type { Express } from 'express';
 import { CreateMaterialPurchaseOrderDto } from '../admin/admin.dto';
+import { RegisterNotificationDeviceDto } from '../notifications/notification.dto';
+import { NotificationService } from '../notifications/notification.service';
 import { TechnicianCreateQuoteDto } from '../orders/dto/extra-quotes.dto';
 import {
   TechnicianPhotoConfirmDto,
@@ -44,6 +47,7 @@ export class TechnicianPortalController {
     private readonly orders: OrdersService,
     private readonly extraQuotes: ExtraQuotesService,
     private readonly technicians: TechniciansService,
+    private readonly notifications: NotificationService,
   ) {}
 
   @Get('technician/me')
@@ -70,6 +74,15 @@ export class TechnicianPortalController {
   @Patch('technician/me/work-status')
   updateWorkStatus(@Req() req: TechnicianRequest, @Body() dto: TechnicianWorkStatusDto) {
     return this.technicians.updateWorkStatus(req.technician!.id, dto.workStatus);
+  }
+
+  @Post('technician/notifications/devices')
+  registerNotificationDevice(
+    @Req() req: TechnicianRequest,
+    @Body() dto: RegisterNotificationDeviceDto,
+    @Headers('user-agent') userAgent?: string,
+  ) {
+    return this.notifications.registerDevice('technician', req.technician!.id, dto, userAgent);
   }
 
   @Get('technician/partner/home')

@@ -9,6 +9,7 @@ import { EmergencyLeadsModule } from './modules/emergency-leads/emergency-leads.
 import { OrdersModule } from './modules/orders/orders.module';
 import { ServiceCatalogModule } from './modules/service-catalog/service-catalog.module';
 import { TechniciansModule } from './modules/technicians/technicians.module';
+import { NotificationModule } from './modules/notifications/notification.module';
 
 @Module({
   controllers: [AppController],
@@ -17,6 +18,7 @@ import { TechniciansModule } from './modules/technicians/technicians.module';
     AdminAuthModule,
     EmergencyLeadsModule,
     OrdersModule,
+    NotificationModule,
     ServiceCatalogModule,
     TechniciansModule,
     AdminModule,

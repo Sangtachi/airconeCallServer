@@ -31,6 +31,9 @@ Supabase(또는 Postgres) 적용 순서 — 위에서 아래로 실행하세요.
 11) acnow_partner_dispatch.sql — ACNow 파트너 기사앱용 선호 배차 조건,
    파트너 공지 테이블.
 
+12) notification_push_invoice.sql — 기사/고객 푸시 디바이스·발송 로그,
+   추가비 최종 명세서용 설치 추가비 카탈로그 보강.
+
 점검(읽기 전용):
   check_installation_status.sql — 함수/테이블/트리거 나열
   verify_installation.sql — PASS/FAIL 요약(함수·테이블·order_id·FK·시드 대표 SKU)
@@ -53,6 +56,9 @@ Supabase(또는 Postgres) 적용 순서 — 위에서 아래로 실행하세요.
   x-admin-role / x-technician-id 는 이번 단계의 임시 헤더입니다. 보안 인증은 다음 스프린트에서 Supabase Auth 또는 서버 세션으로 교체합니다.
   EMERGENCY_DEFAULT_PRODUCT_ID=  (선택 — 긴급 리드 자동 주문 초안의 기본 설치 상품 UUID; 미설정 시 첫 활성 설치 상품 폴백)
   ORDER_PHOTOS_SIGNED_URL_TTL_SEC=900  (0 이면 목록에 DB url 그대로 — 공개 버킷용)
+  FIREBASE_SERVICE_ACCOUNT_JSON=  (선택 — 기사앱 Android FCM 푸시)
+  FIREBASE_PROJECT_ID= / FIREBASE_CLIENT_EMAIL= / FIREBASE_PRIVATE_KEY=  (JSON 대신 분리 설정 가능)
+  WEB_PUSH_VAPID_PUBLIC_KEY= / WEB_PUSH_VAPID_PRIVATE_KEY= / WEB_PUSH_VAPID_SUBJECT=mailto:...  (고객앱 Web Push)
 
 Storage(작업 사진 presigned / 확인 URL):
   - 대시보드 Storage 에 버킷 생성(이름은 ENV 와 동일 또는 기본 order-photos).

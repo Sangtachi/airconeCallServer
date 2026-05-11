@@ -305,6 +305,20 @@ const tabs = [
     formEdit: null,
   },
   {
+    id: 'notification_events',
+    name: '푸시/알림 로그',
+    adminRoles: ['super_admin', 'ops_admin', 'dispatch_admin', 'finance_admin'],
+    list: '/api/admin/notification-events',
+    formCreate: null,
+    selectable: false,
+    bulkDelete: false,
+    quickFilters: [
+      { key: 'status', label: '상태', options: opts([['sent', '성공'], ['failed', '실패'], ['skipped', '스킵'], ['queued', '대기']]) },
+      { key: 'eventType', label: '이벤트', options: opts([['dispatch_offer', '배차'], ['extra_quote_requested', '추가금'], ['job_completed', '완료']]) },
+    ],
+    formEdit: null,
+  },
+  {
     id: 'settlement_events',
     name: '정산 감사',
     adminRoles: ['super_admin', 'finance_admin', 'dispatch_admin'],
@@ -975,6 +989,8 @@ function renderActions() {
     c.onclick = () => patch(`/api/admin/settlements/${selected.id}/status`, { status: 'held' });
   } else if (activeId === 'settlement_events') {
     $actions.innerHTML = '<span class="muted">정산 상태 변경, 확정, 취소 처리의 감사 이력을 조회합니다. 주문 검색값 필터를 사용할 수 있습니다.</span>';
+  } else if (activeId === 'notification_events') {
+    $actions.innerHTML = '<span class="muted">푸시 토큰 없음, Firebase/VAPID 미설정, 발송 실패까지 모두 이력으로 남깁니다.</span>';
   } else if (activeId === 'admin_logs') {
     $actions.innerHTML = '<span class="muted">관리자 CRUD/상태 변경 로그입니다. 검색으로 작업명, 대상 테이블, 변경 내용을 찾을 수 있습니다.</span>';
   } else if (activeId === 'emergency_leads') {

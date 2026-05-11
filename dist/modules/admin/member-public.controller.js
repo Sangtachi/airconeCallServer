@@ -15,6 +15,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SellerPublicController = exports.MemberPublicController = exports.AuthPublicController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const notification_dto_1 = require("../notifications/notification.dto");
+const notification_service_1 = require("../notifications/notification.service");
 const admin_dto_1 = require("./admin.dto");
 const admin_service_1 = require("./admin.service");
 let AuthPublicController = class AuthPublicController {
@@ -40,8 +42,9 @@ exports.AuthPublicController = AuthPublicController = __decorate([
     __metadata("design:paramtypes", [admin_service_1.AdminService])
 ], AuthPublicController);
 let MemberPublicController = class MemberPublicController {
-    constructor(admin) {
+    constructor(admin, notifications) {
         this.admin = admin;
+        this.notifications = notifications;
     }
     register(dto) {
         return this.admin.registerMember(dto);
@@ -51,6 +54,15 @@ let MemberPublicController = class MemberPublicController {
     }
     dashboard(id) {
         return this.admin.memberDashboard(id);
+    }
+    registerNotificationDevice(id, dto, userAgent) {
+        return this.notifications.registerDevice('member', id, dto, userAgent);
+    }
+    orderExtraQuotes(id, orderId) {
+        return this.admin.memberListOrderExtraQuotes(id, orderId);
+    }
+    approveAndPayExtraQuote(id, orderId, quoteId) {
+        return this.admin.memberApproveAndMockPayExtraQuote(id, orderId, quoteId);
     }
     createAddress(id, dto) {
         return this.admin.createMemberAddress(id, dto);
@@ -102,6 +114,35 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], MemberPublicController.prototype, "dashboard", null);
+__decorate([
+    (0, common_1.Post)(':id/notification-devices'),
+    (0, swagger_1.ApiOperation)({ summary: '고객 Web Push 디바이스 등록(Supabase notification_devices)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('user-agent')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, notification_dto_1.RegisterNotificationDeviceDto, String]),
+    __metadata("design:returntype", void 0)
+], MemberPublicController.prototype, "registerNotificationDevice", null);
+__decorate([
+    (0, common_1.Get)(':id/orders/:orderId/extra-quotes'),
+    (0, swagger_1.ApiOperation)({ summary: '고객 주문 추가금 명세서 목록' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('orderId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], MemberPublicController.prototype, "orderExtraQuotes", null);
+__decorate([
+    (0, common_1.Post)(':id/orders/:orderId/extra-quotes/:quoteId/approve-and-pay'),
+    (0, swagger_1.ApiOperation)({ summary: '고객 추가금 승인 + 모의 결제 기록' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('orderId')),
+    __param(2, (0, common_1.Param)('quoteId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], MemberPublicController.prototype, "approveAndPayExtraQuote", null);
 __decorate([
     (0, common_1.Post)(':id/addresses'),
     (0, swagger_1.ApiOperation)({ summary: '고객 주소 등록(Supabase)' }),
@@ -181,7 +222,8 @@ __decorate([
 exports.MemberPublicController = MemberPublicController = __decorate([
     (0, swagger_1.ApiTags)('members-public'),
     (0, common_1.Controller)('members'),
-    __metadata("design:paramtypes", [admin_service_1.AdminService])
+    __metadata("design:paramtypes", [admin_service_1.AdminService,
+        notification_service_1.NotificationService])
 ], MemberPublicController);
 let SellerPublicController = class SellerPublicController {
     constructor(admin) {

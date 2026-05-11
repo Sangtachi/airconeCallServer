@@ -18,6 +18,7 @@ const emergency_leads_module_1 = require("./modules/emergency-leads/emergency-le
 const orders_module_1 = require("./modules/orders/orders.module");
 const service_catalog_module_1 = require("./modules/service-catalog/service-catalog.module");
 const technicians_module_1 = require("./modules/technicians/technicians.module");
+const notification_module_1 = require("./modules/notifications/notification.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -29,6 +30,7 @@ exports.AppModule = AppModule = __decorate([
             admin_auth_module_1.AdminAuthModule,
             emergency_leads_module_1.EmergencyLeadsModule,
             orders_module_1.OrdersModule,
+            notification_module_1.NotificationModule,
             service_catalog_module_1.ServiceCatalogModule,
             technicians_module_1.TechniciansModule,
             admin_module_1.AdminModule,

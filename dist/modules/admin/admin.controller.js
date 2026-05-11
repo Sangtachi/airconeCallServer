@@ -16,14 +16,16 @@ exports.AdminController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const admin_role_guard_1 = require("../../common/admin-role.guard");
+const notification_service_1 = require("../notifications/notification.service");
 const technicians_service_1 = require("../technicians/technicians.service");
 const admin_access_guard_1 = require("./admin-access.guard");
 const admin_service_1 = require("./admin.service");
 const admin_dto_1 = require("./admin.dto");
 let AdminController = class AdminController {
-    constructor(service, technicians) {
+    constructor(service, technicians, notifications) {
         this.service = service;
         this.technicians = technicians;
+        this.notifications = notifications;
     }
     dashboard() { return this.service.getDashboard(); }
     getMembers() { return this.service.getMembers(); }
@@ -142,6 +144,9 @@ let AdminController = class AdminController {
         return this.service.deleteCoupon(id);
     }
     getLogs() { return this.service.getAdminLogs(); }
+    getNotificationEvents() {
+        return this.notifications.listEvents();
+    }
 };
 exports.AdminController = AdminController;
 __decorate([
@@ -523,6 +528,13 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getLogs", null);
+__decorate([
+    (0, common_1.Get)('notification-events'),
+    (0, admin_role_guard_1.AdminRoles)('dispatch_admin', 'ops_admin', 'finance_admin'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getNotificationEvents", null);
 exports.AdminController = AdminController = __decorate([
     (0, swagger_1.ApiTags)('admin'),
     (0, swagger_1.ApiSecurity)('admin-role'),
@@ -534,6 +546,7 @@ exports.AdminController = AdminController = __decorate([
     (0, common_1.UseGuards)(admin_access_guard_1.AdminAccessGuard, admin_role_guard_1.AdminRoleGuard),
     (0, common_1.Controller)('admin'),
     __metadata("design:paramtypes", [admin_service_1.AdminService,
-        technicians_service_1.TechniciansService])
+        technicians_service_1.TechniciansService,
+        notification_service_1.NotificationService])
 ], AdminController);
 //# sourceMappingURL=admin.controller.js.map

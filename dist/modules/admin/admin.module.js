@@ -12,6 +12,7 @@ const admin_role_guard_1 = require("../../common/admin-role.guard");
 const orders_module_1 = require("../orders/orders.module");
 const service_catalog_module_1 = require("../service-catalog/service-catalog.module");
 const technicians_module_1 = require("../technicians/technicians.module");
+const notification_module_1 = require("../notifications/notification.module");
 const admin_auth_controller_1 = require("./admin-auth.controller");
 const admin_controller_1 = require("./admin.controller");
 const member_public_controller_1 = require("./member-public.controller");
@@ -22,7 +23,7 @@ let AdminModule = class AdminModule {
 exports.AdminModule = AdminModule;
 exports.AdminModule = AdminModule = __decorate([
     (0, common_1.Module)({
-        imports: [technicians_module_1.TechniciansModule, orders_module_1.OrdersModule, service_catalog_module_1.ServiceCatalogModule],
+        imports: [technicians_module_1.TechniciansModule, orders_module_1.OrdersModule, service_catalog_module_1.ServiceCatalogModule, notification_module_1.NotificationModule],
         controllers: [admin_controller_1.AdminController, admin_auth_controller_1.AdminAuthController, member_public_controller_1.AuthPublicController, member_public_controller_1.MemberPublicController, member_public_controller_1.SellerPublicController],
         providers: [admin_service_1.AdminService, settlement_audit_service_1.SettlementAuditService, admin_role_guard_1.AdminRoleGuard],
         exports: [admin_service_1.AdminService],

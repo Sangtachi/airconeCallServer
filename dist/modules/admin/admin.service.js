@@ -19,6 +19,7 @@ const database_tokens_1 = require("../../database/database.tokens");
 const service_catalog_service_1 = require("../service-catalog/service-catalog.service");
 const technicians_service_1 = require("../technicians/technicians.service");
 const orders_service_1 = require("../orders/orders.service");
+const extra_quotes_service_1 = require("../orders/extra-quotes.service");
 const admin_payments_settlements_db_1 = require("./admin-payments-settlements.db");
 const settlement_audit_service_1 = require("./settlement-audit.service");
 const allowedTransitions = {
@@ -277,9 +278,10 @@ function bookingFromOrder(row) {
     };
 }
 let AdminService = class AdminService {
-    constructor(techniciansRegistry, orders, catalog, sb, settlementAudit) {
+    constructor(techniciansRegistry, orders, extraQuotes, catalog, sb, settlementAudit) {
         this.techniciansRegistry = techniciansRegistry;
         this.orders = orders;
+        this.extraQuotes = extraQuotes;
         this.catalog = catalog;
         this.sb = sb;
         this.settlementAudit = settlementAudit;
@@ -483,50 +485,52 @@ let AdminService = class AdminService {
         const phone = normalizePhone(dto.phone);
         if (phone.length < 10)
             throw new common_1.BadRequestException('invalid phone');
-        const sb = this.db();
-        const { data: memberRow, error: memberError } = await sb
-            .from('members')
-            .select('*,password_hash')
-            .eq('phone', phone)
-            .maybeSingle();
-        if (memberError)
-            throw new common_1.BadRequestException(memberError.message);
-        if (memberRow) {
-            if (!(0, password_hash_1.verifyPassword)(dto.password, memberRow.password_hash)) {
-                throw new common_1.UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+        if (this.sb) {
+            const sb = this.sb;
+            const { data: memberRow, error: memberError } = await sb
+                .from('members')
+                .select('*,password_hash')
+                .eq('phone', phone)
+                .maybeSingle();
+            if (memberError)
+                throw new common_1.BadRequestException(memberError.message);
+            if (memberRow) {
+                if (!(0, password_hash_1.verifyPassword)(dto.password, memberRow.password_hash)) {
+                    throw new common_1.UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+                }
+                const member = memberFromRow(memberRow);
+                if (member.status !== 'active')
+                    throw new common_1.BadRequestException(`member status is ${member.status}`);
+                return {
+                    id: member.id,
+                    memberId: member.id,
+                    role: member.role,
+                    name: member.name,
+                    phone: member.phone,
+                    status: member.status,
+                };
             }
-            const member = memberFromRow(memberRow);
-            if (member.status !== 'active')
-                throw new common_1.BadRequestException(`member status is ${member.status}`);
-            return {
-                id: member.id,
-                memberId: member.id,
-                role: member.role,
-                name: member.name,
-                phone: member.phone,
-                status: member.status,
-            };
-        }
-        const { data: sellerRow, error: sellerError } = await sb
-            .from('seller_applications')
-            .select('*,password_hash')
-            .eq('phone', phone)
-            .maybeSingle();
-        if (sellerError)
-            throw new common_1.BadRequestException(sellerError.message);
-        if (sellerRow) {
-            if (!(0, password_hash_1.verifyPassword)(dto.password, sellerRow.password_hash)) {
-                throw new common_1.UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+            const { data: sellerRow, error: sellerError } = await sb
+                .from('seller_applications')
+                .select('*,password_hash')
+                .eq('phone', phone)
+                .maybeSingle();
+            if (sellerError)
+                throw new common_1.BadRequestException(sellerError.message);
+            if (sellerRow) {
+                if (!(0, password_hash_1.verifyPassword)(dto.password, sellerRow.password_hash)) {
+                    throw new common_1.UnauthorizedException('전화번호 또는 비밀번호가 맞지 않습니다.');
+                }
+                return {
+                    id: String(sellerRow.id),
+                    sellerId: String(sellerRow.id),
+                    role: 'seller',
+                    name: String(sellerRow.owner_name ?? ''),
+                    companyName: String(sellerRow.company_name ?? ''),
+                    phone: String(sellerRow.phone ?? phone),
+                    status: String(sellerRow.status ?? 'pending'),
+                };
             }
-            return {
-                id: String(sellerRow.id),
-                sellerId: String(sellerRow.id),
-                role: 'seller',
-                name: String(sellerRow.owner_name ?? ''),
-                companyName: String(sellerRow.company_name ?? ''),
-                phone: String(sellerRow.phone ?? phone),
-                status: String(sellerRow.status ?? 'pending'),
-            };
         }
         const technician = this.techniciansRegistry.findApprovedByCredentials(phone, dto.password);
         if (technician) {
@@ -628,6 +632,22 @@ let AdminService = class AdminService {
     }
     async ensureMemberExists(memberId) {
         return this.getMember(requireUuid(memberId, 'member id'));
+    }
+    async assertMemberOrder(member, orderId, columns = 'id,user_id,customer_phone') {
+        const { data, error } = await this.db()
+            .from('orders')
+            .select(columns)
+            .eq('id', requireUuid(orderId, 'order id'))
+            .maybeSingle();
+        if (error)
+            throw new common_1.BadRequestException(error.message);
+        if (!data)
+            throw new common_1.NotFoundException('order not found');
+        const row = data;
+        if (String(row.user_id ?? '') !== member.id && String(row.customer_phone ?? '') !== member.phone) {
+            throw new common_1.UnauthorizedException('회원 주문이 아닙니다.');
+        }
+        return row;
     }
     async assertAddressOwner(memberId, addressId) {
         const { data, error } = await this.db()
@@ -819,19 +839,7 @@ let AdminService = class AdminService {
     }
     async reviewMemberOrder(memberId, orderId, dto) {
         const member = await this.ensureMemberExists(memberId);
-        const { data: order, error: e0 } = await this.db()
-            .from('orders')
-            .select('id,user_id,customer_phone,assigned_technician_id,order_status')
-            .eq('id', requireUuid(orderId, 'order id'))
-            .maybeSingle();
-        if (e0)
-            throw new common_1.BadRequestException(e0.message);
-        if (!order)
-            throw new common_1.NotFoundException('order not found');
-        const o = order;
-        if (String(o.user_id ?? '') !== member.id && String(o.customer_phone ?? '') !== member.phone) {
-            throw new common_1.UnauthorizedException('회원 주문이 아닙니다.');
-        }
+        const o = await this.assertMemberOrder(member, orderId, 'id,user_id,customer_phone,assigned_technician_id,order_status');
         if (!['completed', 'settlement_pending', 'settled'].includes(String(o.order_status ?? ''))) {
             throw new common_1.BadRequestException('완료된 주문만 평가할 수 있습니다.');
         }
@@ -863,6 +871,28 @@ let AdminService = class AdminService {
             rating: dto.rating,
         });
         return reviewFromRow(data);
+    }
+    async memberListOrderExtraQuotes(memberId, orderId) {
+        const member = await this.ensureMemberExists(memberId);
+        await this.assertMemberOrder(member, orderId, 'id,user_id,customer_phone');
+        return this.extraQuotes.adminListQuotes(orderId);
+    }
+    async memberApproveAndMockPayExtraQuote(memberId, orderId, quoteId) {
+        const member = await this.ensureMemberExists(memberId);
+        await this.assertMemberOrder(member, orderId, 'id,user_id,customer_phone');
+        const quotes = await this.extraQuotes.adminListQuotes(orderId);
+        const quote = quotes.find((q) => q.id === quoteId);
+        if (!quote)
+            throw new common_1.NotFoundException('quote not found');
+        if (quote.status === 'requested')
+            await this.extraQuotes.adminCustomerApprove(quoteId);
+        const paid = await this.extraQuotes.adminMockPay(quoteId);
+        await this.audit('member_approve_extra_quote', 'order_extra_quotes', quoteId, {
+            memberId: member.id,
+            orderId,
+            paymentId: paid.paymentId,
+        });
+        return paid;
     }
     async registerSeller(dto) {
         const phone = normalizePhone(dto.phone);
@@ -1704,9 +1734,10 @@ let AdminService = class AdminService {
 exports.AdminService = AdminService;
 exports.AdminService = AdminService = __decorate([
     (0, common_1.Injectable)(),
-    __param(3, (0, common_1.Inject)(database_tokens_1.SUPABASE_ADMIN)),
+    __param(4, (0, common_1.Inject)(database_tokens_1.SUPABASE_ADMIN)),
     __metadata("design:paramtypes", [technicians_service_1.TechniciansService,
         orders_service_1.OrdersService,
+        extra_quotes_service_1.ExtraQuotesService,
         service_catalog_service_1.ServiceCatalogService, Object, settlement_audit_service_1.SettlementAuditService])
 ], AdminService);
 //# sourceMappingURL=admin.service.js.map

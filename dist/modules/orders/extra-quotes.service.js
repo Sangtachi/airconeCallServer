@@ -29,7 +29,7 @@ let ExtraQuotesService = class ExtraQuotesService {
         return this.sb;
     }
     async technicianCreateQuote(technicianId, orderId, dto) {
-        await this.orders.technicianGetJob(technicianId, orderId);
+        const order = await this.orders.technicianGetJob(technicianId, orderId);
         if (!dto.items?.length)
             throw new common_1.BadRequestException('items required');
         const itemsIn = dto.items.map((it) => {
@@ -92,7 +92,7 @@ let ExtraQuotesService = class ExtraQuotesService {
                 amount: r.amount,
             });
         }
-        return {
+        const result = {
             id: qid,
             orderId,
             technicianId,
@@ -104,6 +104,9 @@ let ExtraQuotesService = class ExtraQuotesService {
             createdAt: now,
             items: itemRows,
         };
+        const pending = await this.orders.markExtraPaymentPending(orderId);
+        await this.orders.notifyOrderCustomer(pending, 'extra_quote_requested', '최종 명세서 확인이 필요합니다', `${order.productName} 작업의 추가금 ${totalAmount.toLocaleString('ko-KR')}원이 요청되었습니다.`, { quoteId: qid, totalAmount });
+        return result;
     }
     async technicianListQuotes(technicianId, orderId) {
         await this.orders.technicianGetJob(technicianId, orderId);
@@ -191,6 +194,7 @@ let ExtraQuotesService = class ExtraQuotesService {
                 .eq('id', quoteId);
             if (qe)
                 throw new common_1.BadRequestException(qe.message);
+            await this.orders.applyPaidExtraQuote(row.orderId, row.totalAmount);
             const fresh = await this.fetchOneDb(quoteId);
             return { quote: fresh, paymentId };
         }

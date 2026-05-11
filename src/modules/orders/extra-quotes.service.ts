@@ -57,7 +57,7 @@ export class ExtraQuotesService {
     orderId: string,
     dto: TechnicianCreateQuoteDto,
   ): Promise<ExtraQuoteRow> {
-    await this.orders.technicianGetJob(technicianId, orderId);
+    const order = await this.orders.technicianGetJob(technicianId, orderId);
     if (!dto.items?.length) throw new BadRequestException('items required');
 
     const itemsIn = dto.items.map((it) => {
@@ -118,11 +118,11 @@ export class ExtraQuotesService {
         amount: r.amount,
       });
     }
-    return {
+    const result = {
       id: qid,
       orderId,
       technicianId,
-      status: 'requested',
+      status: 'requested' as const,
       totalAmount,
       customerApprovedAt: null,
       paidAt: null,
@@ -130,6 +130,15 @@ export class ExtraQuotesService {
       createdAt: now,
       items: itemRows,
     };
+    const pending = await this.orders.markExtraPaymentPending(orderId);
+    await this.orders.notifyOrderCustomer(
+      pending,
+      'extra_quote_requested',
+      '최종 명세서 확인이 필요합니다',
+      `${order.productName} 작업의 추가금 ${totalAmount.toLocaleString('ko-KR')}원이 요청되었습니다.`,
+      { quoteId: qid, totalAmount },
+    );
+    return result;
   }
 
   async technicianListQuotes(technicianId: string, orderId: string): Promise<ExtraQuoteRow[]> {
@@ -217,6 +226,7 @@ export class ExtraQuotesService {
         .update({ status: 'paid', paid_at: paidAt, updated_at: paidAt })
         .eq('id', quoteId);
       if (qe) throw new BadRequestException(qe.message);
+      await this.orders.applyPaidExtraQuote(row.orderId, row.totalAmount);
       const fresh = await this.fetchOneDb(quoteId);
       return { quote: fresh, paymentId };
     }

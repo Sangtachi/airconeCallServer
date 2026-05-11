@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { DatabaseModule } from '../../database/database.module';
 import { SUPABASE_ADMIN } from '../../database/database.tokens';
 import { ServiceCatalogModule } from '../service-catalog/service-catalog.module';
+import { NotificationModule } from '../notifications/notification.module';
 import { CustomerOrdersAdminController } from './customer-orders-admin.controller';
 import type { OrdersRepositoryPort } from './orders.repository.port';
 import { ORDERS_REPO } from './orders.repository.port';
@@ -30,7 +31,7 @@ function unavailableOrdersRepository(): OrdersRepositoryPort {
 }
 
 @Module({
-  imports: [ServiceCatalogModule, DatabaseModule],
+  imports: [ServiceCatalogModule, DatabaseModule, NotificationModule],
   controllers: [
     OrdersController,
     PaymentsMockController,

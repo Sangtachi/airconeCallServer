@@ -1,5 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { RegisterNotificationDeviceDto } from '../notifications/notification.dto';
+import { NotificationService } from '../notifications/notification.service';
 import {
   CreateAirconAssetDto,
   CreateMaterialDto,
@@ -31,7 +33,10 @@ export class AuthPublicController {
 @ApiTags('members-public')
 @Controller('members')
 export class MemberPublicController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly notifications: NotificationService,
+  ) {}
 
   @Post('register')
   @ApiOperation({ summary: '고객 회원 upsert + 가입 쿠폰 멱등 발급(Supabase)' })
@@ -49,6 +54,32 @@ export class MemberPublicController {
   @ApiOperation({ summary: '고객 대시보드: 회원 정보, 쿠폰, 문의 목록(Supabase)' })
   dashboard(@Param('id') id: string) {
     return this.admin.memberDashboard(id);
+  }
+
+  @Post(':id/notification-devices')
+  @ApiOperation({ summary: '고객 Web Push 디바이스 등록(Supabase notification_devices)' })
+  registerNotificationDevice(
+    @Param('id') id: string,
+    @Body() dto: RegisterNotificationDeviceDto,
+    @Headers('user-agent') userAgent?: string,
+  ) {
+    return this.notifications.registerDevice('member', id, dto, userAgent);
+  }
+
+  @Get(':id/orders/:orderId/extra-quotes')
+  @ApiOperation({ summary: '고객 주문 추가금 명세서 목록' })
+  orderExtraQuotes(@Param('id') id: string, @Param('orderId') orderId: string) {
+    return this.admin.memberListOrderExtraQuotes(id, orderId);
+  }
+
+  @Post(':id/orders/:orderId/extra-quotes/:quoteId/approve-and-pay')
+  @ApiOperation({ summary: '고객 추가금 승인 + 모의 결제 기록' })
+  approveAndPayExtraQuote(
+    @Param('id') id: string,
+    @Param('orderId') orderId: string,
+    @Param('quoteId') quoteId: string,
+  ) {
+    return this.admin.memberApproveAndMockPayExtraQuote(id, orderId, quoteId);
   }
 
   @Post(':id/addresses')
